@@ -1,0 +1,4 @@
+aws_region     = "us-east-1"
+project_name   = "cloud-portability"
+environment    = "dev"
+enable_compute = false

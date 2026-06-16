@@ -1,0 +1,42 @@
+{
+  "name": "cloud-portability-app",
+  "version": "0.2.0",
+  "private": true,
+  "description": "AI-Powered Multi-Cloud Portability & Deployment Automation Platform",
+  "license": "MIT",
+  "author": "Pratiksha Prabhakar Bande",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Pratikshaprabhakarbande/Cloud-portaibility-app.git"
+  },
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "scripts": {
+    "install:all": "npm install --workspaces --include-workspace-root",
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "build": "npm run build --workspace=frontend",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down -v"
+  },
+  "keywords": [
+    "multi-cloud",
+    "aws",
+    "azure",
+    "gcp",
+    "terraform",
+    "kubernetes",
+    "devops",
+    "sre",
+    "finops",
+    "bedrock"
+  ]
+}
