@@ -13,7 +13,17 @@ let server;
 
 async function start() {
   validateEnv();
-  await connectDB();
+
+  // The DB is required in production. In development we still start the HTTP
+  // server even if MongoDB is unreachable, so the API is up (health works) and
+  // DB-backed routes fail gracefully instead of the whole process refusing
+  // connections. This makes local `npm run dev` work without a database.
+  try {
+    await connectDB();
+  } catch (err) {
+    if (env.isProd) throw err;
+    logger.warn(`[backend] starting WITHOUT a database (development): ${err.message}`);
+  }
 
   server = app.listen(env.port, () => {
     logger.info(`[backend] listening on port ${env.port} (env=${env.nodeEnv}, demoMode=${env.demoMode})`);
