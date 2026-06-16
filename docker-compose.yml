@@ -1,14 +1,14 @@
 # ============================================================
 # Full local stack — one command: `docker compose up --build`
 # Runs in DEMO_MODE by default (no cloud credentials, zero cost).
-# Self-contained: no manual .env copying required to start.
+# Secrets are REQUIRED: run `cp .env.example .env` first.
+# Resource limits (deploy.resources.limits) are applied by Docker Compose v2.
 # ============================================================
 services:
   backend:
     build: ./backend
     container_name: cp_backend
-    # Inline env so the stack boots on a fresh clone. Secrets are REQUIRED and
-    # read from your environment / root .env (run: cp .env.example .env).
+    # Secrets are read from your environment / root .env (cp .env.example .env).
     # Compose fails fast with a clear message if a secret is unset.
     environment:
       - NODE_ENV=production
@@ -24,6 +24,11 @@ services:
       mongo:
         condition: service_healthy
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.75"
+          memory: 512M
     networks:
       - cloudnet
 
@@ -35,6 +40,11 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
     networks:
       - cloudnet
 
@@ -55,6 +65,11 @@ services:
       retries: 5
       start_period: 20s
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
     networks:
       - cloudnet
 
@@ -66,6 +81,11 @@ services:
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090"
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
     networks:
       - cloudnet
 
@@ -84,6 +104,11 @@ services:
     depends_on:
       - prometheus
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
     networks:
       - cloudnet
 
