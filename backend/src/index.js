@@ -1,26 +1,45 @@
 /**
  * Process entry point.
- *
- * Phase 2 (scaffolding): boots a minimal Express server exposing a health check
- * so the container/compose topology is verifiable. Full application wiring
- * (DB connection, routes, adapters) is added in Phase 5 (Backend) and Phase 6
- * (MongoDB Integration).
+ * Validates env, connects to MongoDB, then starts the HTTP server.
+ * Handles graceful shutdown and fatal error safety nets.
  */
 import 'dotenv/config';
 import app from './app.js';
+import env, { validateEnv } from './config/env.js';
+import { connectDB, disconnectDB } from './config/db.js';
+import logger from './utils/logger.js';
 
-const PORT = process.env.PORT || 5000;
+let server;
 
-const server = app.listen(PORT, () => {
-  console.log(`[backend] listening on port ${PORT} (DEMO_MODE=${process.env.DEMO_MODE ?? 'true'})`);
-});
+async function start() {
+  validateEnv();
+  await connectDB();
 
-// Graceful shutdown
-const shutdown = (signal) => {
-  console.log(`[backend] received ${signal}, shutting down...`);
-  server.close(() => process.exit(0));
-};
+  server = app.listen(env.port, () => {
+    logger.info(`[backend] listening on port ${env.port} (env=${env.nodeEnv}, demoMode=${env.demoMode})`);
+  });
+}
+
+async function shutdown(signal) {
+  logger.info(`[backend] received ${signal}, shutting down...`);
+  if (server) server.close();
+  await disconnectDB();
+  process.exit(0);
+}
+
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('unhandledRejection', (reason) => {
+  logger.error(`[backend] unhandled rejection: ${reason}`);
+});
+process.on('uncaughtException', (err) => {
+  logger.error(`[backend] uncaught exception: ${err.message}`);
+  process.exit(1);
+});
 
-export default server;
+start().catch((err) => {
+  logger.error(`[backend] failed to start: ${err.message}`);
+  process.exit(1);
+});
+
+export default app;

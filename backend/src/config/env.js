@@ -35,7 +35,15 @@ const env = {
 
   jwt: {
     secret: process.env.JWT_SECRET || 'dev_insecure_secret_change_me',
-    expiresIn: process.env.JWT_EXPIRES_IN || '1d'
+    // Access token should be short-lived; refresh token longer-lived & revocable.
+    accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || process.env.JWT_EXPIRES_IN || '15m',
+    refreshSecret:
+      process.env.JWT_REFRESH_SECRET ||
+      process.env.JWT_SECRET ||
+      'dev_insecure_refresh_secret_change_me',
+    refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
+    // Password reset token lifetime (minutes)
+    resetExpiresInMin: toInt(process.env.JWT_RESET_EXPIRES_MIN, 15)
   },
 
   bcryptSaltRounds: toInt(process.env.BCRYPT_SALT_ROUNDS, 10),
@@ -57,6 +65,12 @@ export function validateEnv() {
   if (env.isProd) {
     if (!process.env.JWT_SECRET || env.jwt.secret === 'dev_insecure_secret_change_me') {
       problems.push('JWT_SECRET must be set to a strong value in production');
+    }
+    if (
+      !process.env.JWT_REFRESH_SECRET ||
+      env.jwt.refreshSecret === 'dev_insecure_refresh_secret_change_me'
+    ) {
+      problems.push('JWT_REFRESH_SECRET must be set to a strong value in production');
     }
     if (!process.env.MONGO_URI) {
       problems.push('MONGO_URI must be set in production');

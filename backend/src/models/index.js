@@ -3,6 +3,7 @@
  *   import { User, Deployment } from '../models/index.js';
  */
 export { default as User } from './user.model.js';
+export { default as Token } from './token.model.js';
 export { default as Deployment } from './deployment.model.js';
 export { default as CloudResource } from './cloudResource.model.js';
 export { default as SecurityReport } from './securityReport.model.js';
