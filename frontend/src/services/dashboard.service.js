@@ -5,8 +5,8 @@
 import api from './api.js';
 
 const dashboardService = {
-  getOverview: () => api.get('/dashboard/overview').then((r) => r.data.data),
-  getCharts: () => api.get('/dashboard/charts').then((r) => r.data.data),
+  getOverview: (provider) => api.get('/dashboard/overview', { params: { provider } }).then((r) => r.data.data),
+  getCharts: (provider) => api.get('/dashboard/charts', { params: { provider } }).then((r) => r.data.data),
   getHealthScore: () => api.get('/dashboard/health-score').then((r) => r.data.data),
   getDeploymentStats: () => api.get('/dashboard/deployments/stats').then((r) => r.data.data),
   getDeploymentTrends: (params) =>

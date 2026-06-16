@@ -4,6 +4,7 @@
  * deployments. Data comes from dashboardService (demo data → live API later).
  */
 import useApi from '../hooks/useApi.js';
+import { useState } from 'react';
 import dashboardService from '../services/dashboard.service.js';
 import StatCard from '../components/ui/StatCard.jsx';
 import CloudProviderCard from '../components/ui/CloudProviderCard.jsx';
@@ -20,9 +21,17 @@ import {
   CostTrendsChart
 } from '../components/charts/index.js';
 
+const SCOPES = [
+  { key: 'multi-cloud', label: 'Multi-Cloud' },
+  { key: 'aws', label: 'AWS' },
+  { key: 'azure', label: 'Azure' },
+  { key: 'gcp', label: 'GCP' }
+];
+
 export default function Dashboard() {
-  const overview = useApi(() => dashboardService.getOverview(), []);
-  const charts = useApi(() => dashboardService.getCharts(), []);
+  const [scope, setScope] = useState('multi-cloud');
+  const overview = useApi(() => dashboardService.getOverview(scope), [scope]);
+  const charts = useApi(() => dashboardService.getCharts(scope), [scope]);
 
   if (overview.error) return <ErrorState message={overview.error} onRetry={overview.refetch} />;
 
@@ -31,11 +40,30 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Multi-Cloud Dashboard</h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Unified view across AWS, Azure, and GCP.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">Multi-Cloud Dashboard</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Unified view across AWS, Azure, and GCP.
+          </p>
+        </div>
+        {/* Provider switcher */}
+        <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-900">
+          {SCOPES.map((s) => (
+            <button
+              key={s.key}
+              type="button"
+              onClick={() => setScope(s.key)}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
+                scope === s.key
+                  ? 'bg-brand-600 text-white'
+                  : 'text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* KPI stats */}

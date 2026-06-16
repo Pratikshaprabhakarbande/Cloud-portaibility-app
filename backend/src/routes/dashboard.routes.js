@@ -19,21 +19,25 @@ import { Router } from 'express';
 import dashboardController from '../controllers/dashboard.controller.js';
 import { authenticate } from '../middleware/auth.js';
 import validate from '../middleware/validate.js';
-import { trendsValidation, listDeploymentsValidation } from '../validations/dashboard.validation.js';
+import {
+  scopeValidation,
+  trendsValidation,
+  listDeploymentsValidation
+} from '../validations/dashboard.validation.js';
 
 const router = Router();
 
 router.use(authenticate);
 
-router.get('/overview', dashboardController.overview);
-router.get('/charts', dashboardController.charts);
-router.get('/health-score', dashboardController.healthScore);
-router.get('/deployments/stats', dashboardController.deploymentStats);
+router.get('/overview', validate(scopeValidation), dashboardController.overview);
+router.get('/charts', validate(scopeValidation), dashboardController.charts);
+router.get('/health-score', validate(scopeValidation), dashboardController.healthScore);
+router.get('/deployments/stats', validate(scopeValidation), dashboardController.deploymentStats);
 router.get('/deployments/trends', validate(trendsValidation), dashboardController.deploymentTrends);
 router.get('/deployments', validate(listDeploymentsValidation), dashboardController.listDeployments);
-router.get('/resource-utilization', dashboardController.resourceUtilization);
-router.get('/cost-summary', dashboardController.costSummary);
-router.get('/security-summary', dashboardController.securitySummary);
-router.get('/compliance-summary', dashboardController.complianceSummary);
+router.get('/resource-utilization', validate(scopeValidation), dashboardController.resourceUtilization);
+router.get('/cost-summary', validate(scopeValidation), dashboardController.costSummary);
+router.get('/security-summary', validate(scopeValidation), dashboardController.securitySummary);
+router.get('/compliance-summary', validate(scopeValidation), dashboardController.complianceSummary);
 
 export default router;

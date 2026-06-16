@@ -1,221 +1,150 @@
 /**
- * Dashboard service — aggregates live data from the Phase 3 models for Module 2.
- * Pure shaping/scoring logic lives in dashboard.helpers.js (unit-tested).
+ * Dashboard service — orchestrates dashboard responses by delegating all
+ * provider-scoped data to the Cloud Adapter Layer (Module 3).
+ *
+ * A `scope` selects the provider adapter:
+ *   'aws' | 'azure' | 'gcp'  -> that single provider
+ *   'multi-cloud' (default)  -> aggregated across all providers
+ *   'mock'                   -> synthetic demo data
+ *
+ * Pure shaping/scoring helpers live in dashboard.helpers.js (unit-tested).
  */
-import {
-  Deployment,
-  CloudResource,
-  SecurityReport,
-  ComplianceReport,
-  CostReport,
-  IncidentReport
-} from '../models/index.js';
+import providerFactory from '../cloud-adapters/ProviderFactory.js';
 import deploymentRepository from '../repositories/DeploymentRepository.js';
-import {
-  PROVIDER_VALUES,
-  DEPLOYMENT_STATUS,
-  RESOURCE_TYPES,
-  RESOURCE_STATUS,
-  INCIDENT_STATUS
-} from '../config/constants.js';
+import { IncidentReport } from '../models/index.js';
+import { INCIDENT_STATUS } from '../config/constants.js';
 import {
   PROVIDER_LABELS,
   PROVIDER_DEFAULT_REGIONS,
   computeSuccessRate,
-  computeProviderHealth,
   statusFromHealth,
   computeChangePct,
   aggregateUsageShare,
-  reshapeDeploymentTrends,
   buildUtilizationSeries,
   round
 } from './dashboard.helpers.js';
 
 const NOT_DELETED = { isDeleted: { $ne: true } };
 
-/* ----------------------------- low-level aggregates ----------------------------- */
+/* --------------------------------- helpers --------------------------------- */
 
-/** provider -> { status: count } */
-async function deploymentStatusByProvider() {
-  const rows = await Deployment.aggregate([
-    { $match: NOT_DELETED },
-    { $group: { _id: { provider: '$provider', status: '$status' }, count: { $sum: 1 } } }
-  ]);
-  const map = {};
-  for (const r of rows) {
-    const { provider, status } = r._id;
-    map[provider] = map[provider] || {};
-    map[provider][status] = r.count;
+/** Pivot an array of per-provider cost summaries into { month, aws, azure, gcp } rows. */
+function pivotCostTrends(perProviderCost) {
+  const byMonth = new Map();
+  for (const c of perProviderCost) {
+    for (const t of c.trends || []) {
+      if (!byMonth.has(t.month)) byMonth.set(t.month, { month: t.month, aws: 0, azure: 0, gcp: 0 });
+      const row = byMonth.get(t.month);
+      if (row[c.provider] !== undefined) row[c.provider] += t.cost;
+    }
   }
-  return map;
+  return Array.from(byMonth.values())
+    .sort((a, b) => a.month.localeCompare(b.month))
+    .slice(-6);
 }
 
-/** provider -> latest numeric score for the given field (e.g. securityScore). */
-async function latestScoreByProvider(Model, field, extraFields = []) {
-  const rows = await Model.aggregate([
-    { $match: NOT_DELETED },
-    { $sort: { createdAt: -1 } },
-    {
-      $group: {
-        _id: '$provider',
-        score: { $first: `$${field}` },
-        ...Object.fromEntries(extraFields.map((f) => [f, { $first: `$${f}` }]))
-      }
-    }
-  ]);
-  const map = {};
-  for (const r of rows) map[r._id] = r;
-  return map;
+const sumMonth = (m) => (m.aws || 0) + (m.azure || 0) + (m.gcp || 0);
+
+/** Count open/investigating incidents for the scope. */
+async function countOpenIncidents(scope) {
+  const keys = providerFactory.resolveProviders(scope).map((a) => a.provider);
+  const match = {
+    ...NOT_DELETED,
+    status: { $in: [INCIDENT_STATUS.OPEN, INCIDENT_STATUS.INVESTIGATING] }
+  };
+  if (keys.length === 1) match.provider = keys[0];
+  return IncidentReport.countDocuments(match);
 }
 
-/** provider -> running container/kubernetes resource count. */
-async function runningContainersByProvider() {
-  const rows = await CloudResource.aggregate([
-    {
-      $match: {
-        ...NOT_DELETED,
-        type: { $in: [RESOURCE_TYPES.CONTAINER, RESOURCE_TYPES.KUBERNETES] },
-        status: RESOURCE_STATUS.RUNNING
-      }
-    },
-    { $group: { _id: '$provider', count: { $sum: 1 } } }
-  ]);
-  const map = {};
-  for (const r of rows) map[r._id] = r.count;
-  return map;
-}
+/* ------------------------------ public methods ----------------------------- */
 
-/** provider -> latest cost snapshot { dailyCost, monthlyCost, projectedCost, savings }. */
-async function latestCostByProvider() {
-  const rows = await CostReport.aggregate([
-    { $match: NOT_DELETED },
-    { $sort: { 'period.date': -1, createdAt: -1 } },
-    {
-      $group: {
-        _id: '$provider',
-        dailyCost: { $first: '$dailyCost' },
-        monthlyCost: { $first: '$monthlyCost' },
-        projectedCost: { $first: '$projectedCost' },
-        savings: { $first: '$totalPotentialSavings' }
-      }
-    }
-  ]);
-  const map = {};
-  for (const r of rows) map[r._id] = r;
-  return map;
-}
-
-/* ------------------------------- public methods -------------------------------- */
-
-/** Per-provider health + overall score. */
-export async function getHealthScore() {
-  const [deployMap, secMap, compMap] = await Promise.all([
-    deploymentStatusByProvider(),
-    latestScoreByProvider(SecurityReport, 'securityScore'),
-    latestScoreByProvider(ComplianceReport, 'complianceScore')
-  ]);
-
-  const providers = PROVIDER_VALUES.map((key) => {
-    const successRate = computeSuccessRate(deployMap[key] || {});
-    const securityScore = secMap[key]?.score ?? null;
-    const complianceScore = compMap[key]?.score ?? null;
-    const health = computeProviderHealth({ successRate, securityScore, complianceScore });
-    return {
-      key,
-      name: PROVIDER_LABELS[key],
-      healthScore: health,
-      status: statusFromHealth(health),
-      metrics: { successRate, securityScore, complianceScore }
-    };
-  });
-
-  const overall = round(providers.reduce((s, p) => s + p.healthScore, 0) / providers.length);
+/** Cloud health score: overall + per-provider breakdown. */
+export async function getHealthScore(scope) {
+  const adapters = providerFactory.resolveProviders(scope);
+  const results = await Promise.all(adapters.map((a) => a.getHealthScore()));
+  const providers = results.map((r) => ({
+    key: r.provider,
+    name: PROVIDER_LABELS[r.provider] || r.provider,
+    healthScore: r.score,
+    status: r.status,
+    metrics: r.metrics
+  }));
+  const overall = providers.length
+    ? round(providers.reduce((s, p) => s + p.healthScore, 0) / providers.length)
+    : 0;
   return { overall, status: statusFromHealth(overall), providers };
 }
 
-/** Deployment statistics: totals, by status, by provider, success rate. */
-export async function getDeploymentStatistics() {
-  const [byStatusRows, byProviderRows, total] = await Promise.all([
-    Deployment.aggregate([{ $match: NOT_DELETED }, { $group: { _id: '$status', count: { $sum: 1 } } }]),
-    Deployment.aggregate([{ $match: NOT_DELETED }, { $group: { _id: '$provider', count: { $sum: 1 } } }]),
-    Deployment.countDocuments(NOT_DELETED)
-  ]);
+/** Provider status cards (status, health, active deployments, running containers). */
+export async function getProviderCards(scope) {
+  const adapters = providerFactory.resolveProviders(scope);
+  return Promise.all(
+    adapters.map(async (adapter) => {
+      const [health, deployments, resources] = await Promise.all([
+        adapter.getHealthScore(),
+        adapter.getDeployments(),
+        adapter.getResources()
+      ]);
+      return {
+        key: adapter.provider,
+        name: PROVIDER_LABELS[adapter.provider] || adapter.provider,
+        region: PROVIDER_DEFAULT_REGIONS[adapter.provider] || 'n/a',
+        status: health.status,
+        healthScore: health.score,
+        activeDeployments: deployments.active,
+        runningContainers: resources.runningContainers ?? 0
+      };
+    })
+  );
+}
 
-  const byStatus = {};
-  for (const r of byStatusRows) byStatus[r._id] = r.count;
-  const byProvider = {};
-  for (const r of byProviderRows) byProvider[r._id] = r.count;
-
-  const active =
-    (byStatus[DEPLOYMENT_STATUS.SUCCESS] || 0) + (byStatus[DEPLOYMENT_STATUS.IN_PROGRESS] || 0);
-
+/** Deployment statistics for the scope. */
+export async function getDeploymentStatistics(scope) {
+  const adapter = providerFactory.get(scope);
+  const d = await adapter.getDeployments();
   return {
-    total,
-    active,
-    successRate: computeSuccessRate(byStatus),
-    byStatus,
-    byProvider
+    total: d.total,
+    active: d.active,
+    successRate: computeSuccessRate(d.byStatus),
+    byStatus: d.byStatus,
+    byProvider: d.byProvider || {}
   };
 }
 
-/** Deployment trends time series (zero-filled). */
+/** Deployment trends time series for the scope. */
 export async function getDeploymentTrends({ days = 7, provider } = {}) {
-  const rows = await deploymentRepository.trends({ days, provider });
-  return reshapeDeploymentTrends(rows, days);
+  const adapter = providerFactory.get(provider);
+  return adapter.getDeploymentTrends({ days });
 }
 
 /** Resource inventory aggregates + modeled utilization series. */
-export async function getResourceUtilization() {
-  const [byType, byStatus, byProvider, total, running] = await Promise.all([
-    CloudResource.aggregate([{ $match: NOT_DELETED }, { $group: { _id: '$type', count: { $sum: 1 } } }]),
-    CloudResource.aggregate([{ $match: NOT_DELETED }, { $group: { _id: '$status', count: { $sum: 1 } } }]),
-    CloudResource.aggregate([{ $match: NOT_DELETED }, { $group: { _id: '$provider', count: { $sum: 1 } } }]),
-    CloudResource.countDocuments(NOT_DELETED),
-    CloudResource.countDocuments({ ...NOT_DELETED, status: RESOURCE_STATUS.RUNNING })
-  ]);
-
-  const toMap = (rows) => rows.reduce((a, r) => ({ ...a, [r._id]: r.count }), {});
-  const runningRatio = total > 0 ? running / total : 0.5;
-
+export async function getResourceUtilization(scope) {
+  const adapter = providerFactory.get(scope);
+  const r = await adapter.getResources();
+  const runningRatio = r.total > 0 ? r.running / r.total : 0.5;
   return {
-    totals: { total, running },
-    byType: toMap(byType),
-    byStatus: toMap(byStatus),
-    byProvider: toMap(byProvider),
+    totals: { total: r.total, running: r.running },
+    byType: r.byType,
+    byStatus: r.byStatus,
+    byProvider: r.byProvider || { [adapter.provider]: r.total },
     series: buildUtilizationSeries(runningRatio),
-    source: 'modeled', // becomes 'prometheus' in Phase 11
+    source: 'modeled',
     note: 'Utilization is modeled from running-resource ratio until Prometheus integration (Phase 11).'
   };
 }
 
-/** Monthly cost trends pivoted by provider for the last N months. */
-export async function getCostTrends({ months = 6 } = {}) {
-  const rows = await CostReport.aggregate([
-    { $match: NOT_DELETED },
-    { $group: { _id: { month: '$period.month', provider: '$provider' }, cost: { $sum: '$monthlyCost' } } },
-    { $sort: { '_id.month': 1 } }
-  ]);
+/** Cost summary: totals + per-provider breakdown + trends + savings. */
+export async function getCostSummary(scope) {
+  const adapters = providerFactory.resolveProviders(scope);
+  const perCost = await Promise.all(adapters.map((a) => a.getCostSummary()));
 
-  const byMonth = new Map();
-  for (const r of rows) {
-    const { month, provider } = r._id;
-    if (!byMonth.has(month)) byMonth.set(month, { month, aws: 0, azure: 0, gcp: 0 });
-    byMonth.get(month)[provider] = round(r.cost);
-  }
-  return Array.from(byMonth.values()).slice(-months);
-}
-
-/** Cost summary: daily/monthly/projected totals + per-provider breakdown + savings. */
-export async function getCostSummary() {
-  const [costMap, trends] = await Promise.all([latestCostByProvider(), getCostTrends({ months: 6 })]);
-
-  const breakdown = PROVIDER_VALUES.map((key) => ({
-    provider: key,
-    name: PROVIDER_LABELS[key],
-    dailyCost: round(costMap[key]?.dailyCost || 0),
-    monthlyCost: round(costMap[key]?.monthlyCost || 0),
-    projectedCost: round(costMap[key]?.projectedCost || 0),
-    savings: round(costMap[key]?.savings || 0)
+  const breakdown = perCost.map((c) => ({
+    provider: c.provider,
+    name: PROVIDER_LABELS[c.provider] || c.provider,
+    dailyCost: c.dailyCost,
+    monthlyCost: c.monthlyCost,
+    projectedCost: c.projectedCost,
+    savings: c.savings
   }));
 
   const totals = breakdown.reduce(
@@ -228,11 +157,10 @@ export async function getCostSummary() {
     { dailyCost: 0, monthlyCost: 0, projectedCost: 0, savings: 0 }
   );
 
-  // Month-over-month change from the trend pivot.
+  const trends = pivotCostTrends(perCost);
   let changePct = 0;
   if (trends.length >= 2) {
-    const sum = (m) => (m.aws || 0) + (m.azure || 0) + (m.gcp || 0);
-    changePct = computeChangePct(sum(trends[trends.length - 1]), sum(trends[trends.length - 2]));
+    changePct = computeChangePct(sumMonth(trends[trends.length - 1]), sumMonth(trends[trends.length - 2]));
   }
 
   const usageShare = aggregateUsageShare(
@@ -242,15 +170,16 @@ export async function getCostSummary() {
   return { currency: 'USD', totals, changePct, breakdown, usageShare, trends };
 }
 
-/** Security summary: overall + per-provider latest scores and finding counts. */
-export async function getSecuritySummary() {
-  const map = await latestScoreByProvider(SecurityReport, 'securityScore', ['riskScore', 'summary']);
-  const providers = PROVIDER_VALUES.map((key) => ({
-    provider: key,
-    name: PROVIDER_LABELS[key],
-    securityScore: map[key]?.score ?? null,
-    riskScore: map[key]?.riskScore ?? null,
-    findings: map[key]?.summary ?? null
+/** Security summary across the scope. */
+export async function getSecuritySummary(scope) {
+  const adapters = providerFactory.resolveProviders(scope);
+  const per = await Promise.all(adapters.map((a) => a.getSecurityFindings()));
+  const providers = per.map((s) => ({
+    provider: s.provider,
+    name: PROVIDER_LABELS[s.provider] || s.provider,
+    securityScore: s.securityScore,
+    riskScore: s.riskScore,
+    findings: s.summary
   }));
   const scored = providers.filter((p) => typeof p.securityScore === 'number');
   const overallSecurity = scored.length
@@ -262,141 +191,82 @@ export async function getSecuritySummary() {
   return { overallSecurity, overallRisk, providers };
 }
 
-/** Compliance summary: overall + per-provider latest framework scores. */
-export async function getComplianceSummary() {
-  const rows = await ComplianceReport.aggregate([
-    { $match: NOT_DELETED },
-    { $sort: { createdAt: -1 } },
-    {
-      $group: {
-        _id: { provider: '$provider', framework: '$framework' },
-        complianceScore: { $first: '$complianceScore' },
-        summary: { $first: '$summary' }
-      }
-    }
-  ]);
-  const reports = rows.map((r) => ({
-    provider: r._id.provider,
-    framework: r._id.framework,
-    complianceScore: r.complianceScore,
-    summary: r.summary
-  }));
-  const overall = reports.length
-    ? round(reports.reduce((s, r) => s + (r.complianceScore || 0), 0) / reports.length)
+/** Compliance summary across the scope. */
+export async function getComplianceSummary(scope) {
+  const adapters = providerFactory.resolveProviders(scope);
+  const per = await Promise.all(adapters.map((a) => a.getComplianceStatus()));
+  const reports = per.flatMap((c) =>
+    (c.reports || []).map((r) => ({
+      provider: c.provider,
+      framework: r.framework,
+      complianceScore: r.complianceScore,
+      summary: r.summary
+    }))
+  );
+  const scored = per.filter((c) => typeof c.overall === 'number');
+  const overall = scored.length
+    ? round(scored.reduce((s, c) => s + c.overall, 0) / scored.length)
     : null;
   return { overall, reports };
 }
 
-/** provider -> most common region (falls back to a default). */
-async function regionByProvider() {
-  const rows = await CloudResource.aggregate([
-    { $match: NOT_DELETED },
-    { $group: { _id: { provider: '$provider', region: '$region' }, count: { $sum: 1 } } },
-    { $sort: { count: -1 } }
-  ]);
-  const map = {};
-  for (const r of rows) {
-    if (!map[r._id.provider]) map[r._id.provider] = r._id.region;
-  }
-  return map;
-}
-
-/** Provider status cards (status, health, active deployments, running containers). */
-export async function getProviderCards() {
-  const [health, deployMap, containerMap, regionMap] = await Promise.all([
-    getHealthScore(),
-    deploymentStatusByProvider(),
-    runningContainersByProvider(),
-    regionByProvider()
-  ]);
-
-  return health.providers.map((p) => {
-    const counts = deployMap[p.key] || {};
-    const activeDeployments =
-      (counts[DEPLOYMENT_STATUS.SUCCESS] || 0) + (counts[DEPLOYMENT_STATUS.IN_PROGRESS] || 0);
-    return {
-      key: p.key,
-      name: p.name,
-      region: regionMap[p.key] || PROVIDER_DEFAULT_REGIONS[p.key],
-      status: p.status,
-      healthScore: p.healthScore,
-      activeDeployments,
-      runningContainers: containerMap[p.key] || 0
-    };
-  });
-}
-
 /** Composite overview consumed by the frontend dashboard. */
-export async function getOverview() {
-  const [providerCards, deployStats, cost, security, incidents, recent] = await Promise.all([
-    getProviderCards(),
-    getDeploymentStatistics(),
-    getCostSummary(),
-    getSecuritySummary(),
-    IncidentReport.countDocuments({
-      ...NOT_DELETED,
-      status: { $in: [INCIDENT_STATUS.OPEN, INCIDENT_STATUS.INVESTIGATING] }
-    }),
-    deploymentRepository.find(NOT_DELETED, { sort: '-createdAt', limit: 8, populate: 'user' })
+export async function getOverview(scope) {
+  const scopeAdapter = providerFactory.get(scope);
+  const [cards, deployments, cost, security, incidents] = await Promise.all([
+    getProviderCards(scope),
+    scopeAdapter.getDeployments(),
+    getCostSummary(scope),
+    scopeAdapter.getSecurityFindings(),
+    countOpenIncidents(scope)
   ]);
 
-  const cloudHealthScore = providerCards.length
-    ? round(providerCards.reduce((s, p) => s + p.healthScore, 0) / providerCards.length)
+  const cloudHealthScore = cards.length
+    ? round(cards.reduce((s, p) => s + p.healthScore, 0) / cards.length)
     : 0;
 
-  const recentDeployments = recent.map((d) => ({
-    id: String(d.id),
-    name: d.name,
-    provider: d.provider,
-    type: d.type,
-    status: d.status,
-    version: d.version,
-    user: d.user?.name || 'Unknown',
-    createdAt: d.createdAt
-  }));
-
   return {
-    providers: providerCards,
+    providers: cards,
     summary: {
-      activeDeployments: deployStats.active,
-      runningContainers: providerCards.reduce((s, p) => s + p.runningContainers, 0),
+      activeDeployments: deployments.active,
+      runningContainers: cards.reduce((s, p) => s + p.runningContainers, 0),
       cloudHealthScore,
       monthlyCost: cost.totals.monthlyCost,
       costChangePct: cost.changePct,
       openIncidents: incidents,
-      securityScore: security.overallSecurity ?? 0
+      securityScore: security.securityScore ?? 0
     },
-    recentDeployments
+    recentDeployments: deployments.recent
   };
 }
 
 /** Composite charts payload consumed by the frontend dashboard. */
-export async function getCharts() {
-  const [deploymentTrends, cost, resource] = await Promise.all([
-    getDeploymentTrends({ days: 7 }),
-    getCostSummary(),
-    getResourceUtilization()
+export async function getCharts(scope) {
+  const scopeAdapter = providerFactory.get(scope);
+  const adapters = providerFactory.resolveProviders(scope);
+  const [deploymentTrends, resources, perCost] = await Promise.all([
+    scopeAdapter.getDeploymentTrends({ days: 7 }),
+    scopeAdapter.getResources(),
+    Promise.all(adapters.map((a) => a.getCostSummary()))
   ]);
+
+  const runningRatio = resources.total > 0 ? resources.running / resources.total : 0.5;
+  const cloudUsage = aggregateUsageShare(
+    perCost.reduce((a, c) => ({ ...a, [c.provider]: c.monthlyCost }), {})
+  );
+
   return {
     deploymentTrends,
-    cloudUsage: cost.usageShare,
-    resourceUtilization: resource.series,
-    costTrends: cost.trends
+    cloudUsage,
+    resourceUtilization: buildUtilizationSeries(runningRatio),
+    costTrends: pivotCostTrends(perCost)
   };
 }
 
 /** Deployment history with pagination/filtering/search (Module 15 preview). */
 export async function listDeployments(query = {}) {
   const { page, limit, sort, search, provider, status, type } = query;
-  const result = await deploymentRepository.history({
-    page,
-    limit,
-    sort,
-    search,
-    provider,
-    status,
-    type
-  });
+  const result = await deploymentRepository.history({ page, limit, sort, search, provider, status, type });
   return {
     ...result,
     results: result.results.map((d) => ({
@@ -415,14 +285,13 @@ export async function listDeployments(query = {}) {
 
 export default {
   getHealthScore,
+  getProviderCards,
   getDeploymentStatistics,
   getDeploymentTrends,
   getResourceUtilization,
-  getCostTrends,
   getCostSummary,
   getSecuritySummary,
   getComplianceSummary,
-  getProviderCards,
   getOverview,
   getCharts,
   listDeployments

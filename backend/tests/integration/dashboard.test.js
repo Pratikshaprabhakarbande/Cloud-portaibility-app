@@ -131,3 +131,30 @@ describe('GET /api/dashboard/deployments (history)', () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe('Provider switching (Cloud Adapter Layer)', () => {
+  it('scopes the overview to a single provider via ?provider=aws', async () => {
+    const res = await request(app).get('/api/dashboard/overview?provider=aws').set(auth());
+    expect(res.status).toBe(200);
+    expect(res.body.data.providers).toHaveLength(1);
+    expect(res.body.data.providers[0].key).toBe('aws');
+  });
+
+  it('aggregates all providers for multi-cloud (default)', async () => {
+    const res = await request(app).get('/api/dashboard/overview?provider=multi-cloud').set(auth());
+    expect(res.status).toBe(200);
+    expect(res.body.data.providers).toHaveLength(3);
+  });
+
+  it('serves synthetic data via the mock provider', async () => {
+    const res = await request(app).get('/api/dashboard/health-score?provider=mock').set(auth());
+    expect(res.status).toBe(200);
+    expect(res.body.data.providers).toHaveLength(1);
+    expect(res.body.data.providers[0].key).toBe('mock');
+  });
+
+  it('rejects an invalid provider scope with 400', async () => {
+    const res = await request(app).get('/api/dashboard/overview?provider=oracle').set(auth());
+    expect(res.status).toBe(400);
+  });
+});

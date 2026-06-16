@@ -53,6 +53,12 @@ const env = {
     max: toInt(process.env.RATE_LIMIT_MAX, 100)
   },
 
+  // In-memory cache for cloud provider adapter results.
+  cache: {
+    enabled: toBool(process.env.CACHE_ENABLED, (process.env.NODE_ENV || 'development') !== 'test'),
+    ttlMs: toInt(process.env.CACHE_TTL_MS, 30000)
+  },
+
   logLevel: process.env.LOG_LEVEL || 'info'
 };
 
