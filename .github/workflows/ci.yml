@@ -27,7 +27,7 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
         continue-on-error: true
       - run: npm run lint --if-present
-      - run: npm test --if-present
+      - run: npm test -- --coverage
 
   frontend:
     name: Frontend (audit, lint, test, build)
