@@ -19,7 +19,8 @@ const env = {
   isProd: (process.env.NODE_ENV || 'development') === 'production',
   port: toInt(process.env.PORT, 5000),
   apiPrefix: process.env.API_PREFIX || '/api',
-  corsOrigin: process.env.CORS_ORIGIN || '*',
+  // Default to the local dev frontend origin (never wildcard with credentials).
+  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3000',
 
   demoMode: toBool(process.env.DEMO_MODE, true),
 
@@ -34,13 +35,12 @@ const env = {
   },
 
   jwt: {
-    secret: process.env.JWT_SECRET || 'dev_insecure_secret_change_me',
+    // Required from the environment — no insecure fallback. validateEnv() fails
+    // fast if these are missing.
+    secret: process.env.JWT_SECRET,
     // Access token should be short-lived; refresh token longer-lived & revocable.
     accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || process.env.JWT_EXPIRES_IN || '15m',
-    refreshSecret:
-      process.env.JWT_REFRESH_SECRET ||
-      process.env.JWT_SECRET ||
-      'dev_insecure_refresh_secret_change_me',
+    refreshSecret: process.env.JWT_REFRESH_SECRET,
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
     // Password reset token lifetime (minutes)
     resetExpiresInMin: toInt(process.env.JWT_RESET_EXPIRES_MIN, 15)
@@ -63,29 +63,37 @@ const env = {
 };
 
 /**
- * Validate critical configuration. In production we refuse to start with
- * insecure defaults; in development we only warn so the demo still runs.
+ * Validate critical configuration and FAIL FAST.
+ *
+ * - JWT secrets are required in every environment (no insecure fallback).
+ * - In production, MONGO_URI must be set and CORS_ORIGIN must be an explicit,
+ *   non-wildcard origin (credentials are enabled).
  */
 export function validateEnv() {
   const problems = [];
+
+  // Always required — there is no safe default for signing secrets.
+  if (!env.jwt.secret) {
+    problems.push('JWT_SECRET is required (set it in the environment / .env)');
+  }
+  if (!env.jwt.refreshSecret) {
+    problems.push('JWT_REFRESH_SECRET is required (set it in the environment / .env)');
+  }
+  if (env.jwt.secret && env.jwt.secret === env.jwt.refreshSecret) {
+    problems.push('JWT_SECRET and JWT_REFRESH_SECRET must be different values');
+  }
+
   if (env.isProd) {
-    if (!process.env.JWT_SECRET || env.jwt.secret === 'dev_insecure_secret_change_me') {
-      problems.push('JWT_SECRET must be set to a strong value in production');
-    }
-    if (
-      !process.env.JWT_REFRESH_SECRET ||
-      env.jwt.refreshSecret === 'dev_insecure_refresh_secret_change_me'
-    ) {
-      problems.push('JWT_REFRESH_SECRET must be set to a strong value in production');
-    }
     if (!process.env.MONGO_URI) {
       problems.push('MONGO_URI must be set in production');
     }
+    if (!process.env.CORS_ORIGIN || env.corsOrigin === '*') {
+      problems.push('CORS_ORIGIN must be set to an explicit (non-wildcard) origin in production');
+    }
   }
+
   if (problems.length) {
-    const msg = `Invalid environment configuration:\n - ${problems.join('\n - ')}`;
-    if (env.isProd) throw new Error(msg);
-    console.warn(`[env] ${msg}`);
+    throw new Error(`Invalid environment configuration:\n - ${problems.join('\n - ')}`);
   }
   return env;
 }

@@ -7,16 +7,17 @@ services:
   backend:
     build: ./backend
     container_name: cp_backend
-    # Inline env so the stack boots on a fresh clone (no committed .env needed).
-    # Override any of these by exporting them or via a root .env file.
+    # Inline env so the stack boots on a fresh clone. Secrets are REQUIRED and
+    # read from your environment / root .env (run: cp .env.example .env).
+    # Compose fails fast with a clear message if a secret is unset.
     environment:
       - NODE_ENV=production
       - PORT=5000
       - DEMO_MODE=true
       - MONGO_URI=mongodb://mongo:27017/cloudportability
       - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
-      - JWT_SECRET=${JWT_SECRET:-local_demo_access_secret_override_me}
-      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-local_demo_refresh_secret_override_me}
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in your environment or root .env (cp .env.example .env)}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in your environment or root .env}
     ports:
       - "${BACKEND_PORT:-5000}:5000"
     depends_on:
