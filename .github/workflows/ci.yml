@@ -8,7 +8,7 @@ on:
 
 jobs:
   backend:
-    name: Backend (lint, test)
+    name: Backend (audit, lint, test)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -18,14 +18,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      # No lockfiles are committed yet, so use `npm install` (not `npm ci`)
-      # and skip dependency caching (which requires a lockfile).
+      # No lockfiles are committed yet (the build env blocks the npm registry,
+      # so they can't be generated here). Use `npm install`. Once lockfiles are
+      # committed from an environment with registry access, switch to `npm ci`.
       - run: npm install
+      # Report known high/critical vulnerabilities without failing the build.
+      - name: npm audit (non-blocking)
+        run: npm audit --omit=dev --audit-level=high
+        continue-on-error: true
       - run: npm run lint --if-present
       - run: npm test --if-present
 
   frontend:
-    name: Frontend (lint, build)
+    name: Frontend (audit, lint, test, build)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -36,7 +41,11 @@ jobs:
         with:
           node-version: 20
       - run: npm install
+      - name: npm audit (non-blocking)
+        run: npm audit --omit=dev --audit-level=high
+        continue-on-error: true
       - run: npm run lint --if-present
+      - run: npm test --if-present
       - run: npm run build --if-present
 
   docker:
