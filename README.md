@@ -67,76 +67,111 @@ See [`docs/02-folder-structure.md`](docs/02-folder-structure.md) for the full an
 
 ---
 
-## Quick Start (Demo Mode — zero cloud cost)
-
-> ⚠️ **Phase 2 status:** This is the project scaffolding. Application code is delivered in later phases.
-> The commands below describe the intended developer workflow once implementation lands.
+## Quick Start (Demo Mode — near-zero cloud cost)
 
 ```bash
 # 1. Clone
 git clone https://github.com/Pratikshaprabhakarbande/Cloud-portaibility-app.git
 cd Cloud-portaibility-app
 
-# 2. Configure environment (copy templates, defaults run in DEMO_MODE)
+# 2. Configure environment.
+#    JWT_SECRET and JWT_REFRESH_SECRET are REQUIRED — the backend fails fast
+#    without them. The .env.example files include dev-only values to get started.
 cp .env.example .env
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 
 # 3. Launch the full stack
 docker compose up --build
+
+# (optional) seed demo data so the dashboard is populated
+docker compose exec backend npm run seed
 ```
 
 | Service | URL |
 |---------|-----|
 | Frontend (PWA) | http://localhost:3000 |
-| Backend API | http://localhost:5000 |
+| Backend API | http://localhost:5000/api/health |
+| Metrics (Prometheus exposition) | http://localhost:5000/metrics |
 | Prometheus | http://localhost:9090 |
 | Grafana | http://localhost:3001 |
+
+Demo logins after seeding (local use only): `admin@demo.io / Admin@12345` (also `cloud@`, `devops@`, `viewer@`).
 
 ### Local development (without Docker)
 
 ```bash
-# Backend
+# Backend  (set JWT secrets in backend/.env first)
 cd backend && npm install && npm run dev
 
 # Frontend (separate terminal)
 cd frontend && npm install && npm run dev
 ```
 
+API reference: [`docs/openapi.yaml`](docs/openapi.yaml) · Contributing: [`CONTRIBUTING.md`](CONTRIBUTING.md) · Security: [`SECURITY.md`](SECURITY.md)
+
 ---
 
 ## Configuration
 
 All configuration is environment-based. Copy the provided `.env.example` files and adjust.
+**Never commit real `.env` files** — only the `.env.example` templates are tracked.
 
-- **Demo Mode** (`DEMO_MODE=true`, default): no cloud credentials required; mock adapters return realistic data.
-- **Live Mode**: supply AWS/Azure/GCP credentials and a MongoDB Atlas URI to enable real integrations.
+### Environment variable reference (backend)
 
-Never commit real `.env` files — only the `.env.example` templates are tracked.
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `NODE_ENV` | no | `development` | `development` \| `production` \| `test` |
+| `PORT` | no | `5000` | Backend HTTP port |
+| `API_PREFIX` | no | `/api` | Base path for API routes |
+| `CORS_ORIGIN` | prod: **yes** | `http://localhost:3000` | Allowed origin; must be explicit (non-`*`) in production |
+| `DEMO_MODE` | no | `true` | `true` = mock/DB adapters (no cloud creds) |
+| `MONGO_URI` | prod: **yes** | `mongodb://localhost:27017/cloudportability` | MongoDB connection string |
+| `JWT_SECRET` | **yes** | — | Access-token signing secret (server fails fast if missing) |
+| `JWT_REFRESH_SECRET` | **yes** | — | Refresh-token signing secret (must differ from `JWT_SECRET`) |
+| `JWT_ACCESS_EXPIRES_IN` | no | `15m` | Access-token lifetime |
+| `JWT_REFRESH_EXPIRES_IN` | no | `7d` | Refresh-token lifetime |
+| `JWT_RESET_EXPIRES_MIN` | no | `15` | Password-reset token lifetime (minutes) |
+| `BCRYPT_SALT_ROUNDS` | no | `10` | bcrypt cost factor |
+| `RATE_LIMIT_WINDOW_MS` | no | `900000` | Global rate-limit window |
+| `RATE_LIMIT_MAX` | no | `100` | Max requests per window |
+| `CACHE_ENABLED` | no | `true` (off in tests) | Cloud-adapter result caching |
+| `CACHE_TTL_MS` | no | `30000` | Adapter cache TTL |
+| `LOG_LEVEL` | no | `info` | Winston log level |
+| `AWS_REGION` / `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | no | — | Only when `DEMO_MODE=false` |
+| `AZURE_*` / `GCP_*` | no | — | Only when `DEMO_MODE=false` |
+
+### Environment variable reference (frontend, Vite)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VITE_API_BASE_URL` | `http://localhost:5000/api` | Backend API base URL |
+| `VITE_APP_NAME` | — | App display name |
+| `VITE_DEMO_MODE` | `true` | UI demo flag |
+
+> Generate strong secrets: `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`
 
 ---
 
-## Build Phases
+## Implementation Status
 
-| Phase | Description | Status |
-|-------|-------------|--------|
-| 1 | Architecture Design | ✅ Complete |
-| 2 | Folder Structure & Scaffolding | ✅ Complete (this branch) |
-| 3 | Database Design | ⏳ Pending |
-| 4 | Frontend | ⏳ Pending |
-| 5 | Backend | ⏳ Pending |
-| 6 | MongoDB Integration | ⏳ Pending |
-| 7 | Docker Integration | ⏳ Pending |
-| 8 | Terraform Integration | ⏳ Pending |
-| 9 | Kubernetes Integration | ⏳ Pending |
-| 10 | Security Center | ⏳ Pending |
-| 11 | Monitoring | ⏳ Pending |
-| 12 | AI Modules | ⏳ Pending |
-| 13 | CI/CD Pipeline | ⏳ Pending |
-| 14 | Deployment Guide | ⏳ Pending |
-| 15 | GitHub Repository Structure | ⏳ Pending |
-| 16 | Resume Description | ⏳ Pending |
-| 17 | Viva Q&A | ⏳ Pending |
+This repository is a **working foundation**, not a finished product. Implemented and verified-in-CI:
+
+| Area | Status |
+|------|--------|
+| Architecture, folder structure, scaffolding | ✅ Done |
+| Database (13 Mongoose models, plugins, repositories, seed) | ✅ Done |
+| Authentication & RBAC (JWT access + rotating refresh, bcrypt, reset) | ✅ Done |
+| React frontend (auth pages, layout, dark mode, PWA) | ✅ Done |
+| Multi-Cloud Dashboard (Module 2) — 10 backend endpoints + UI | ✅ Done |
+| Cloud Adapter Layer (Module 3) — AWS/Azure/GCP/Mock/Multi-Cloud + switching | ✅ Done |
+| Observability — `/metrics` (prom-client) + Grafana dashboard | ✅ Done |
+| CI/CD — lint, tests + coverage gate, Docker build, CodeQL, Dependabot | ✅ Done |
+| Real cloud SDK integrations (AWS/Azure/GCP live) | ⏳ Not started |
+| AI modules, Terraform/Docker/K8s engines, Security/FinOps/Compliance, etc. | ⏳ Not started (navigation shows "Coming soon") |
+
+> The remaining product modules from the "19 modules" vision are **not yet implemented**.
+> See [`docs/PROJECT_SUMMARY.md`](docs/PROJECT_SUMMARY.md) for the full breakdown.
 
 ---
 
