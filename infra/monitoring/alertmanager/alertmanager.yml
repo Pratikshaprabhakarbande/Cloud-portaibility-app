@@ -1,0 +1,25 @@
+# Alertmanager configuration.
+# Routes fired Prometheus alerts to receivers (webhook, email, Slack, PagerDuty).
+# This default routes everything to a single receiver; customize per environment.
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: default
+  group_by: ['alertname']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - match:
+        severity: critical
+      receiver: default
+      repeat_interval: 1h
+
+receivers:
+  - name: default
+    # Webhook (useful for generic integrations; replace with Slack/email/PD):
+    # webhook_configs:
+    #   - url: 'http://host.docker.internal:9095/alert'
+    #     send_resolved: true
+    # For now: log to alertmanager stdout (visible via docker compose logs alertmanager).
