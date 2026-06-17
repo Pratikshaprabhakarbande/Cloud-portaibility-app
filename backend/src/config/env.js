@@ -59,6 +59,18 @@ const env = {
     ttlMs: toInt(process.env.CACHE_TTL_MS, 30000)
   },
 
+  // Terraform automation engine. Safe by default: when disabled (the default),
+  // commands are SIMULATED — no terraform binary, no cloud calls, no billable
+  // resources. Enable explicitly to run the real terraform CLI.
+  terraform: {
+    enabled: toBool(process.env.TERRAFORM_ENABLED, false),
+    bin: process.env.TERRAFORM_BIN || 'terraform',
+    // Root of the IaC templates (defaults to the repo's infra/terraform).
+    rootDir: process.env.TERRAFORM_ROOT || '../infra/terraform',
+    // Apply/destroy require this extra guard even when terraform is enabled.
+    allowMutations: toBool(process.env.TERRAFORM_ALLOW_MUTATIONS, false)
+  },
+
   logLevel: process.env.LOG_LEVEL || 'info'
 };
 
