@@ -30,15 +30,15 @@ export const NAV_SECTIONS = [
     title: 'Governance',
     items: [
       { label: 'Security Center', to: '/security', icon: 'shield', roles: ALL_ROLES },
-      { label: 'Compliance', to: '/compliance', icon: 'compliance', roles: ALL_ROLES, status: 'soon' },
-      { label: 'FinOps', to: '/finops', icon: 'dollar', roles: ALL_ROLES, status: 'soon' }
+      { label: 'Compliance', to: '/compliance', icon: 'compliance', roles: ALL_ROLES },
+      { label: 'FinOps', to: '/finops', icon: 'dollar', roles: ALL_ROLES }
     ]
   },
   {
     title: 'Intelligence',
     items: [
       { label: 'AI Cloud Advisor', to: '/ai-architect', icon: 'sparkles', roles: NON_VIEWER },
-      { label: 'Migration Advisor', to: '/migration', icon: 'migration', roles: NON_VIEWER, status: 'soon' }
+      { label: 'Migration Advisor', to: '/migration', icon: 'migration', roles: NON_VIEWER }
     ]
   },
   {
