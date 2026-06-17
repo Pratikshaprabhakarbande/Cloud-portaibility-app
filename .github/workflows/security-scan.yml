@@ -28,7 +28,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm install
+      - run: npm ci || npm install
       # Report known high/critical vulnerabilities without failing the build.
       - name: npm audit
         run: npm audit --audit-level=high
