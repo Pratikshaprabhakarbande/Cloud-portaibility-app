@@ -79,6 +79,30 @@ const env = {
     bedrockModelId: process.env.BEDROCK_MODEL_ID || 'anthropic.claude-3-sonnet-20240229-v1:0'
   },
 
+  // Live cloud integrations. Adapters serve demo/DB data UNLESS DEMO_MODE=false
+  // AND the provider's credentials are present. SDKs are loaded lazily
+  // (optional deps) and any failure falls back to demo data — so the app never
+  // crashes and incurs no cost by default.
+  cloud: {
+    aws: {
+      region: process.env.AWS_REGION || 'us-east-1',
+      hasCredentials: Boolean(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY)
+    },
+    azure: {
+      subscriptionId: process.env.AZURE_SUBSCRIPTION_ID || null,
+      hasCredentials: Boolean(
+        process.env.AZURE_SUBSCRIPTION_ID &&
+          process.env.AZURE_TENANT_ID &&
+          process.env.AZURE_CLIENT_ID &&
+          process.env.AZURE_CLIENT_SECRET
+      )
+    },
+    gcp: {
+      projectId: process.env.GCP_PROJECT_ID || null,
+      hasCredentials: Boolean(process.env.GCP_PROJECT_ID && process.env.GOOGLE_APPLICATION_CREDENTIALS)
+    }
+  },
+
   logLevel: process.env.LOG_LEVEL || 'info'
 };
 
