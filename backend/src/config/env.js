@@ -71,6 +71,14 @@ const env = {
     allowMutations: toBool(process.env.TERRAFORM_ALLOW_MUTATIONS, false)
   },
 
+  // AI Cloud Advisor. Defaults to the rule-based engine (zero-cost, offline).
+  // Bedrock is opt-in and only used when explicitly enabled + credentialed.
+  ai: {
+    provider: process.env.AI_PROVIDER || 'rule', // 'rule' | 'bedrock'
+    bedrockEnabled: toBool(process.env.BEDROCK_ENABLED, false),
+    bedrockModelId: process.env.BEDROCK_MODEL_ID || 'anthropic.claude-3-sonnet-20240229-v1:0'
+  },
+
   logLevel: process.env.LOG_LEVEL || 'info'
 };
 

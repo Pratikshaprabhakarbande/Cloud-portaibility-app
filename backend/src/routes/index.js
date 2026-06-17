@@ -8,6 +8,7 @@ import authRoutes from './auth.routes.js';
 import dashboardRoutes from './dashboard.routes.js';
 import terraformRoutes from './terraform.routes.js';
 import securityRoutes from './security.routes.js';
+import advisorRoutes from './advisor.routes.js';
 
 const router = Router();
 
@@ -27,5 +28,6 @@ router.use('/auth', authRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/terraform', terraformRoutes);
 router.use('/security', securityRoutes);
+router.use('/ai', advisorRoutes);
 
 export default router;
