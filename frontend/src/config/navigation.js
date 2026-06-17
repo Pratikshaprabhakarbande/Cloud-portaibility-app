@@ -21,7 +21,7 @@ export const NAV_SECTIONS = [
   {
     title: 'Operations',
     items: [
-      { label: 'Terraform', to: '/terraform', icon: 'rocket', roles: NON_VIEWER, status: 'soon' },
+      { label: 'Terraform', to: '/terraform', icon: 'rocket', roles: NON_VIEWER },
       { label: 'Kubernetes', to: '/kubernetes', icon: 'container', roles: NON_VIEWER, status: 'soon' },
       { label: 'Monitoring', to: '/monitoring', icon: 'chart', roles: ALL_ROLES, status: 'soon' }
     ]
@@ -29,7 +29,7 @@ export const NAV_SECTIONS = [
   {
     title: 'Governance',
     items: [
-      { label: 'Security Center', to: '/security', icon: 'shield', roles: ALL_ROLES, status: 'soon' },
+      { label: 'Security Center', to: '/security', icon: 'shield', roles: ALL_ROLES },
       { label: 'Compliance', to: '/compliance', icon: 'compliance', roles: ALL_ROLES, status: 'soon' },
       { label: 'FinOps', to: '/finops', icon: 'dollar', roles: ALL_ROLES, status: 'soon' }
     ]
@@ -37,7 +37,7 @@ export const NAV_SECTIONS = [
   {
     title: 'Intelligence',
     items: [
-      { label: 'AI Architect', to: '/ai-architect', icon: 'sparkles', roles: NON_VIEWER, status: 'soon' },
+      { label: 'AI Cloud Advisor', to: '/ai-architect', icon: 'sparkles', roles: NON_VIEWER },
       { label: 'Migration Advisor', to: '/migration', icon: 'migration', roles: NON_VIEWER, status: 'soon' }
     ]
   },

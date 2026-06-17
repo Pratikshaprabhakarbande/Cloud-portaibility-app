@@ -21,6 +21,9 @@ import ResetPassword from './pages/auth/ResetPassword.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Profile from './pages/Profile.jsx';
 import Settings from './pages/Settings.jsx';
+import Terraform from './pages/Terraform.jsx';
+import Security from './pages/Security.jsx';
+import AiAdvisor from './pages/AiAdvisor.jsx';
 import ComingSoon from './pages/ComingSoon.jsx';
 import Unauthorized from './pages/Unauthorized.jsx';
 import NotFound from './pages/NotFound.jsx';
@@ -54,14 +57,14 @@ export default function App() {
           {/* Coming soon (all roles) */}
           <Route path="/deployments" element={<ComingSoon />} />
           <Route path="/monitoring" element={<ComingSoon />} />
-          <Route path="/security" element={<ComingSoon />} />
+          <Route path="/security" element={<Security />} />
           <Route path="/compliance" element={<ComingSoon />} />
           <Route path="/finops" element={<ComingSoon />} />
 
-          {/* Coming soon (non-viewer) */}
-          <Route path="/terraform" element={<ProtectedRoute roles={NON_VIEWER}><ComingSoon /></ProtectedRoute>} />
+          {/* Implemented module pages (non-viewer) */}
+          <Route path="/terraform" element={<ProtectedRoute roles={NON_VIEWER}><Terraform /></ProtectedRoute>} />
           <Route path="/kubernetes" element={<ProtectedRoute roles={NON_VIEWER}><ComingSoon /></ProtectedRoute>} />
-          <Route path="/ai-architect" element={<ProtectedRoute roles={NON_VIEWER}><ComingSoon /></ProtectedRoute>} />
+          <Route path="/ai-architect" element={<ProtectedRoute roles={NON_VIEWER}><AiAdvisor /></ProtectedRoute>} />
           <Route path="/migration" element={<ProtectedRoute roles={NON_VIEWER}><ComingSoon /></ProtectedRoute>} />
 
           {/* Coming soon (admin only) */}

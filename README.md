@@ -170,7 +170,7 @@ This repository is a **working foundation**, not a finished product. Implemented
 | AI Cloud Advisor — `/api/ai` rule-based engine (LLM-ready) | ✅ Backend |
 | Observability — `/metrics` (HTTP + runtime + business gauges) + 6 Grafana dashboards | ✅ Done |
 | CI/CD — lint, tests + coverage gate, Docker build, CodeQL, Dependabot, Trivy security scan, GHCR deploy | ✅ Done |
-| Frontend pages for Terraform/Security/AI modules | ⏳ Backend ready; UI shows "Coming soon" |
+| Frontend pages for Terraform/Security/AI modules | ✅ Done (Terraform Center, Security Center, AI Cloud Advisor) |
 | Real cloud SDK integrations (AWS/Azure/GCP live) | ⏳ Not started (adapters are SDK-ready) |
 | Remaining product modules (Docker/K8s engines, FinOps, Compliance, ChatOps, etc.) | ⏳ Not started |
 
