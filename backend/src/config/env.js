@@ -53,10 +53,19 @@ const env = {
     max: toInt(process.env.RATE_LIMIT_MAX, 100)
   },
 
-  // In-memory cache for cloud provider adapter results.
+  // In-memory cache for cloud provider adapter results (Redis-backed when REDIS_URL set).
   cache: {
     enabled: toBool(process.env.CACHE_ENABLED, (process.env.NODE_ENV || 'development') !== 'test'),
-    ttlMs: toInt(process.env.CACHE_TTL_MS, 30000)
+    ttlMs: toInt(process.env.CACHE_TTL_MS, 30000),
+    redisUrl: process.env.REDIS_URL || null
+  },
+
+  // Opt-in HttpOnly-cookie refresh-token strategy + CSRF (default OFF for
+  // backward compatibility with the Bearer-token flow).
+  auth: {
+    cookieRefresh: toBool(process.env.AUTH_COOKIE_REFRESH, false),
+    cookieSecure: toBool(process.env.COOKIE_SECURE, (process.env.NODE_ENV || 'development') === 'production'),
+    cookieSameSite: process.env.COOKIE_SAMESITE || 'strict'
   },
 
   // Terraform automation engine. Safe by default: when disabled (the default),

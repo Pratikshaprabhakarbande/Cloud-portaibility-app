@@ -32,7 +32,9 @@ export const loginValidation = [
 ];
 
 export const refreshValidation = [
-  body('refreshToken').isString().notEmpty().withMessage('refreshToken is required')
+  // Optional: the refresh token may come from the body (Bearer flow) or the
+  // HttpOnly cookie (cookie flow). A missing/invalid token yields 401 in the service.
+  body('refreshToken').optional().isString()
 ];
 
 export const logoutValidation = [

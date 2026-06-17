@@ -6,6 +6,7 @@
  */
 import env from '../config/env.js';
 import logger from '../utils/logger.js';
+import { getRedis } from '../config/redis.js';
 
 export class TTLCache {
   constructor(defaultTtlMs = 30000) {
@@ -60,10 +61,25 @@ export const adapterCache = new TTLCache(env.cache.ttlMs);
 
 /**
  * Memoize an async function result under `key` for the cache TTL.
- * Caching is bypassed when disabled (e.g. in tests).
+ * Uses Redis when configured (REDIS_URL + ioredis), otherwise the in-memory
+ * cache. Any Redis error falls back to memory. Bypassed when caching is
+ * disabled (e.g. in tests).
  */
 export async function withCache(key, fn, ttlMs) {
   if (!env.cache.enabled) return fn();
+
+  const redis = await getRedis();
+  if (redis) {
+    try {
+      const cached = await redis.get(key);
+      if (cached !== null) return JSON.parse(cached);
+      const value = await fn();
+      await redis.set(key, JSON.stringify(value), 'PX', ttlMs ?? env.cache.ttlMs);
+      return value;
+    } catch (err) {
+      logger.warn(`[cache] redis error, using in-memory cache: ${err.message}`);
+    }
+  }
 
   const cached = adapterCache.get(key);
   if (cached !== undefined) {

@@ -8,12 +8,14 @@ import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
 import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
 
 import env from './config/env.js';
 import logger from './utils/logger.js';
 import routes from './routes/index.js';
 import { metricsMiddleware, metricsHandler } from './config/metrics.js';
 import { apiLimiter } from './middleware/rateLimit.js';
+import csrfProtection from './middleware/csrf.js';
 import { notFound, errorConverter, errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
@@ -29,6 +31,7 @@ app.use(cors({ origin: env.corsOrigin, credentials: allowCredentials }));
 app.use(compression());
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // Request metrics (records count, duration, errors for every request)
 app.use(metricsMiddleware);
@@ -52,8 +55,8 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
-// Global API rate limit + mounted routes
-app.use(env.apiPrefix, apiLimiter, routes);
+// Global API rate limit + CSRF (no-op unless cookie auth enabled) + routes
+app.use(env.apiPrefix, apiLimiter, csrfProtection, routes);
 
 // 404 + error handling (order matters: convert before final handler)
 app.use(notFound);

@@ -12,6 +12,7 @@
 import env from '../config/env.js';
 import logger from '../utils/logger.js';
 import { AI_SOURCES } from '../config/constants.js';
+import { getRegisteredAdvisor } from './hooks.js';
 
 const rec = (category, title, detail, extra = {}) => ({ category, title, detail, ...extra });
 
@@ -148,6 +149,11 @@ export class BedrockAdvisor extends AdvisorEngine {
  */
 export function getAdvisor() {
   const provider = env.ai?.provider || 'rule';
+
+  // Extension hook: a custom engine registered under this provider name wins.
+  const custom = getRegisteredAdvisor(provider);
+  if (custom) return custom;
+
   if (provider === 'bedrock' && !env.demoMode && env.ai?.bedrockEnabled) {
     try {
       return new BedrockAdvisor();
