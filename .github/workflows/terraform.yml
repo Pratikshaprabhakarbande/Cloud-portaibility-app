@@ -1,0 +1,84 @@
+name: Terraform
+
+# Manual-dispatch only — never runs on push/PR, so normal CI is unaffected.
+# validate runs without credentials; plan/apply/destroy use the selected
+# GitHub Environment (attach required reviewers + cloud secrets there).
+on:
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: Cloud provider
+        type: choice
+        options: [aws, azure, gcp]
+        default: aws
+        required: true
+      action:
+        description: Terraform action
+        type: choice
+        options: [validate, plan, apply, destroy]
+        default: plan
+        required: true
+      environment:
+        description: Target environment
+        type: choice
+        options: [dev, staging, prod]
+        default: dev
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    name: terraform ${{ inputs.action }} (${{ inputs.provider }}/${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    # GitHub Environment provides per-env protection rules + secrets.
+    environment: ${{ inputs.environment }}
+    defaults:
+      run:
+        working-directory: infra/terraform/${{ inputs.provider }}
+    env:
+      # Cloud credentials are read from environment/repo secrets (only present
+      # for plan/apply/destroy). Configure the ones you use.
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      GOOGLE_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS_JSON }}
+      TF_VAR_environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.5
+
+      - name: Format check
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      # Validate works without a backend or credentials.
+      - name: Init (no backend) + Validate
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+
+      - name: Init (remote backend)
+        if: ${{ inputs.action != 'validate' }}
+        run: terraform init -input=false
+
+      - name: Plan
+        if: ${{ inputs.action == 'plan' || inputs.action == 'apply' }}
+        run: terraform plan -input=false -var-file=../environments/${{ inputs.environment }}.tfvars -out=tfplan
+
+      - name: Apply
+        if: ${{ inputs.action == 'apply' }}
+        run: terraform apply -input=false -auto-approve tfplan
+
+      - name: Destroy
+        if: ${{ inputs.action == 'destroy' }}
+        run: terraform destroy -input=false -auto-approve -var-file=../environments/${{ inputs.environment }}.tfvars

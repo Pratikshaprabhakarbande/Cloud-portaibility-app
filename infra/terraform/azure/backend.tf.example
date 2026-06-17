@@ -1,0 +1,11 @@
+# Remote state backend (Azure Storage Account).
+# Copy to backend.tf and fill in your values, then `terraform init`.
+
+terraform {
+  backend "azurerm" {
+    resource_group_name  = "REPLACE_ME-tfstate-rg"
+    storage_account_name = "replacemetfstate"
+    container_name       = "tfstate"
+    key                  = "cloud-portability/azure/terraform.tfstate"
+  }
+}
