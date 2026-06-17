@@ -39,13 +39,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Trivy vulnerability + secret scan
-        uses: aquasecurity/trivy-action@0.24.0
+      # Install the Trivy CLI directly (pinned, pre-compromise version) instead
+      # of the marketplace action — avoids the unresolvable tag and the 2026
+      # trivy-action supply-chain incident. Non-blocking (report-only).
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/v0.50.0/contrib/install.sh \
+            | sh -s -- -b "$RUNNER_TEMP/trivy-bin" v0.50.0
+          echo "$RUNNER_TEMP/trivy-bin" >> "$GITHUB_PATH"
+      - name: Trivy filesystem scan (vuln, secret, misconfig)
+        run: trivy fs --scanners vuln,secret,misconfig --severity HIGH,CRITICAL --ignore-unfixed --no-progress --exit-code 0 .
         continue-on-error: true
-        with:
-          scan-type: fs
-          scanners: vuln,secret,misconfig
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          format: table
-          exit-code: "0"

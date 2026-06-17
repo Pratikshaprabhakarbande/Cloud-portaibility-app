@@ -18,7 +18,13 @@ class DeploymentRepository extends BaseRepository {
     if (status) filter.status = status;
     if (type) filter.type = type;
     if (user) filter.user = user;
-    if (search) filter.$text = { $search: search };
+    if (search) {
+      // Case-insensitive substring match on name. Escape regex metacharacters to
+      // avoid injection/ReDoS. (Index-independent so it works deterministically
+      // regardless of background text-index build state.)
+      const safe = String(search).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      filter.name = { $regex: safe, $options: 'i' };
+    }
     return this.paginate(filter, { populate: 'user', ...options });
   }
 
