@@ -1,8 +1,20 @@
-# Prometheus scrape configuration.
-# The backend exposes metrics at /metrics (prom-client) — wired in Phase 11.
+# Prometheus scrape + alerting configuration.
+# Backend exposes metrics at /metrics (prom-client). Alert rules live in alerts.yml.
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
+
+# Alert rules (evaluated by Prometheus; visible at /alerts).
+rule_files:
+  - alerts.yml
+
+# Optional Alertmanager wiring (uncomment + add an alertmanager service to route
+# notifications to Slack/email/PagerDuty). Rules fire regardless and are visible
+# in the Prometheus UI and Grafana.
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']
 
 scrape_configs:
   - job_name: 'prometheus'
