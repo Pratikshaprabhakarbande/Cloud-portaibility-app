@@ -38,20 +38,19 @@ async function generateAuthTokens(user) {
 }
 
 /**
- * Validate a refresh token (signature + DB presence + not blacklisted),
- * rotate it (revoke old, issue new), and return a new token pair.
+ * Validate a refresh token (signature + DB presence + not blacklisted) and
+ * rotate it. The find + delete is performed ATOMICALLY via findOneAndDelete so
+ * the token can be used exactly once — a reused/rotated token matches nothing
+ * and is rejected. Returns the userId for re-issuing a new pair.
  */
 async function rotateRefreshToken(refreshToken) {
   const decoded = verifyRefreshToken(refreshToken);
-  const tokenDoc = await Token.findOne({
+  const tokenDoc = await Token.findOneAndDelete({
     tokenHash: hash(refreshToken),
     type: TOKEN_TYPES.REFRESH,
     blacklisted: false
   });
   if (!tokenDoc) throw ApiError.unauthorized('Refresh token not recognized or revoked');
-
-  // Revoke the used token (rotation prevents replay).
-  await tokenDoc.deleteOne();
 
   return { userId: decoded.sub };
 }
@@ -81,16 +80,15 @@ async function generateResetToken(user) {
 
 /** Consume a reset token: returns the userId if valid, else throws. */
 async function consumeResetToken(rawToken) {
-  const tokenDoc = await Token.findOne({
+  // Atomic one-time consume.
+  const tokenDoc = await Token.findOneAndDelete({
     tokenHash: hash(rawToken),
     type: TOKEN_TYPES.RESET_PASSWORD,
     blacklisted: false,
     expiresAt: { $gt: new Date() }
   });
   if (!tokenDoc) throw ApiError.badRequest('Invalid or expired reset token');
-  const userId = tokenDoc.user;
-  await tokenDoc.deleteOne(); // one-time use
-  return userId;
+  return tokenDoc.user;
 }
 
 export default {
