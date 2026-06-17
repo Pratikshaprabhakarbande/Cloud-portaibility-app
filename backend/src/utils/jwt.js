@@ -6,6 +6,7 @@
  * in the database so they can be revoked (see token.service.js).
  */
 import jwt from 'jsonwebtoken';
+import crypto from 'node:crypto';
 import env from '../config/env.js';
 import ApiError from './ApiError.js';
 
@@ -27,7 +28,14 @@ export function signAccessToken(user) {
 /** Sign a long-lived refresh token. */
 export function signRefreshToken(user) {
   const payload = { sub: String(user.id ?? user._id), type: TOKEN_TYPES.REFRESH };
-  return jwt.sign(payload, env.jwt.refreshSecret, { expiresIn: env.jwt.refreshExpiresIn });
+  // Unique token id (jti) guarantees every issued refresh token is distinct,
+  // even when signed within the same second. Without it, rotation could delete
+  // a token's record and immediately re-create an identical one, leaving the
+  // "old" token still valid on reuse.
+  return jwt.sign(payload, env.jwt.refreshSecret, {
+    expiresIn: env.jwt.refreshExpiresIn,
+    jwtid: crypto.randomUUID()
+  });
 }
 
 /** Verify an access token; throws ApiError(401) on failure. */
