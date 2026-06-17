@@ -10,6 +10,7 @@
  * Scraped by Prometheus at GET /metrics (see infra/monitoring/prometheus).
  */
 import client from 'prom-client';
+import logger from '../utils/logger.js';
 
 export const register = new client.Registry();
 register.setDefaultLabels({ app: 'cloud-portability-backend' });
@@ -38,6 +39,88 @@ const httpRequestErrorsTotal = new client.Counter({
   labelNames: ['method', 'route', 'status'],
   registers: [register]
 });
+
+/* ----------------------- Business / platform gauges ------------------------ */
+/* Populated periodically from the dashboard service (see collector below), so
+ * the Grafana dashboards reflect real data rather than placeholders. */
+
+const cloudHealthScore = new client.Gauge({
+  name: 'cloud_health_score',
+  help: 'Cloud health score 0-100 (label provider=overall|aws|azure|gcp)',
+  labelNames: ['provider'],
+  registers: [register]
+});
+const cloudActiveDeployments = new client.Gauge({
+  name: 'cloud_active_deployments',
+  help: 'Active deployments across the selected scope',
+  registers: [register]
+});
+const cloudRunningContainers = new client.Gauge({
+  name: 'cloud_running_containers',
+  help: 'Running containers across the selected scope',
+  registers: [register]
+});
+const cloudOpenIncidents = new client.Gauge({
+  name: 'cloud_open_incidents',
+  help: 'Open/investigating incidents',
+  registers: [register]
+});
+const cloudMonthlyCostUsd = new client.Gauge({
+  name: 'cloud_monthly_cost_usd',
+  help: 'Estimated monthly cost in USD (label provider=total|aws|azure|gcp)',
+  labelNames: ['provider'],
+  registers: [register]
+});
+const cloudSecurityScore = new client.Gauge({
+  name: 'cloud_security_score',
+  help: 'Security score 0-100 (label provider=overall|aws|azure|gcp)',
+  labelNames: ['provider'],
+  registers: [register]
+});
+
+/**
+ * Refresh business gauges from the dashboard service (multi-cloud scope).
+ * Lazy-imports the service to avoid any import cycle. Safe to call repeatedly;
+ * errors (e.g. DB unavailable) are swallowed so /metrics never breaks.
+ */
+export async function updateBusinessMetrics() {
+  const dash = await import('../services/dashboard.service.js');
+  const overview = await dash.getOverview();
+  cloudHealthScore.set({ provider: 'overall' }, overview.summary.cloudHealthScore);
+  overview.providers.forEach((p) => cloudHealthScore.set({ provider: p.key }, p.healthScore));
+  cloudActiveDeployments.set(overview.summary.activeDeployments);
+  cloudRunningContainers.set(overview.summary.runningContainers);
+  cloudOpenIncidents.set(overview.summary.openIncidents);
+
+  const cost = await dash.getCostSummary();
+  cloudMonthlyCostUsd.set({ provider: 'total' }, cost.totals.monthlyCost);
+  cost.breakdown.forEach((b) => cloudMonthlyCostUsd.set({ provider: b.provider }, b.monthlyCost));
+
+  const sec = await dash.getSecuritySummary();
+  if (typeof sec.overallSecurity === 'number') cloudSecurityScore.set({ provider: 'overall' }, sec.overallSecurity);
+  sec.providers.forEach((p) => {
+    if (typeof p.securityScore === 'number') cloudSecurityScore.set({ provider: p.provider }, p.securityScore);
+  });
+}
+
+let collectorTimer = null;
+
+/** Start the periodic business-metrics collector (no-op if already running). */
+export function startBusinessMetricsCollector(intervalMs = 30000) {
+  if (collectorTimer) return;
+  const tick = () =>
+    updateBusinessMetrics().catch((err) =>
+      logger.warn(`[metrics] business metrics update skipped: ${err.message}`)
+    );
+  tick();
+  collectorTimer = setInterval(tick, intervalMs);
+  if (collectorTimer.unref) collectorTimer.unref(); // don't keep the process alive
+}
+
+export function stopBusinessMetricsCollector() {
+  if (collectorTimer) clearInterval(collectorTimer);
+  collectorTimer = null;
+}
 
 /**
  * Normalize the route label to the matched route pattern (not the raw URL),
@@ -68,4 +151,11 @@ export async function metricsHandler(_req, res) {
   res.end(await register.metrics());
 }
 
-export default { register, metricsMiddleware, metricsHandler };
+export default {
+  register,
+  metricsMiddleware,
+  metricsHandler,
+  updateBusinessMetrics,
+  startBusinessMetricsCollector,
+  stopBusinessMetricsCollector
+};

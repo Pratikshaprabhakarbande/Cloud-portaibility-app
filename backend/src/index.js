@@ -7,6 +7,7 @@ import 'dotenv/config';
 import app from './app.js';
 import env, { validateEnv } from './config/env.js';
 import { connectDB, disconnectDB } from './config/db.js';
+import { startBusinessMetricsCollector } from './config/metrics.js';
 import logger from './utils/logger.js';
 
 let server;
@@ -20,6 +21,8 @@ async function start() {
   // connections. This makes local `npm run dev` work without a database.
   try {
     await connectDB();
+    // Start exporting business metrics to Prometheus now that the DB is up.
+    startBusinessMetricsCollector();
   } catch (err) {
     if (env.isProd) throw err;
     logger.warn(`[backend] starting WITHOUT a database (development): ${err.message}`);
