@@ -9,6 +9,9 @@ import dashboardRoutes from './dashboard.routes.js';
 import terraformRoutes from './terraform.routes.js';
 import securityRoutes from './security.routes.js';
 import advisorRoutes from './advisor.routes.js';
+import complianceRoutes from './compliance.routes.js';
+import finopsRoutes from './finops.routes.js';
+import migrationRoutes from './migration.routes.js';
 
 const router = Router();
 
@@ -29,5 +32,8 @@ router.use('/dashboard', dashboardRoutes);
 router.use('/terraform', terraformRoutes);
 router.use('/security', securityRoutes);
 router.use('/ai', advisorRoutes);
+router.use('/compliance', complianceRoutes);
+router.use('/finops', finopsRoutes);
+router.use('/migration', migrationRoutes);
 
 export default router;
