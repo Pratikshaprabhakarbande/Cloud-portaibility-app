@@ -165,10 +165,14 @@ This repository is a **working foundation**, not a finished product. Implemented
 | React frontend (auth pages, layout, dark mode, PWA) | ✅ Done |
 | Multi-Cloud Dashboard (Module 2) — 10 backend endpoints + UI | ✅ Done |
 | Cloud Adapter Layer (Module 3) — AWS/Azure/GCP/Mock/Multi-Cloud + switching | ✅ Done |
-| Observability — `/metrics` (prom-client) + Grafana dashboard | ✅ Done |
-| CI/CD — lint, tests + coverage gate, Docker build, CodeQL, Dependabot | ✅ Done |
-| Real cloud SDK integrations (AWS/Azure/GCP live) | ⏳ Not started |
-| AI modules, Terraform/Docker/K8s engines, Security/FinOps/Compliance, etc. | ⏳ Not started (navigation shows "Coming soon") |
+| Terraform Automation — `/api/terraform` init/validate/plan/apply/destroy/history (safe-by-default simulation) | ✅ Backend |
+| Security Center — `/api/security` risk score, failed logins, access logs, events | ✅ Backend |
+| AI Cloud Advisor — `/api/ai` rule-based engine (LLM-ready) | ✅ Backend |
+| Observability — `/metrics` (HTTP + runtime + business gauges) + 6 Grafana dashboards | ✅ Done |
+| CI/CD — lint, tests + coverage gate, Docker build, CodeQL, Dependabot, Trivy security scan, GHCR deploy | ✅ Done |
+| Frontend pages for Terraform/Security/AI modules | ⏳ Backend ready; UI shows "Coming soon" |
+| Real cloud SDK integrations (AWS/Azure/GCP live) | ⏳ Not started (adapters are SDK-ready) |
+| Remaining product modules (Docker/K8s engines, FinOps, Compliance, ChatOps, etc.) | ⏳ Not started |
 
 > The remaining product modules from the "19 modules" vision are **not yet implemented**.
 > See [`docs/PROJECT_SUMMARY.md`](docs/PROJECT_SUMMARY.md) for the full breakdown.

@@ -16,6 +16,9 @@ servers:
 tags:
   - name: Auth
   - name: Dashboard
+  - name: Terraform
+  - name: Security
+  - name: AI
   - name: Ops
 
 components:
@@ -303,4 +306,93 @@ paths:
       tags: [Dashboard]
       summary: Compliance scores
       parameters: [ { $ref: '#/components/parameters/ProviderScope' } ]
+      responses: { '200': { description: OK } }
+
+  # ---- Terraform automation (safe-by-default simulation) ----
+  /api/terraform/init:
+    post:
+      tags: [Terraform]
+      summary: terraform init (DevOps Engineer+)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [provider], properties: { provider: { type: string, enum: [aws, azure, gcp] } } } } }
+      responses: { '200': { description: OK }, '400': { description: Invalid provider }, '401': { description: Unauthorized }, '403': { description: Forbidden } }
+  /api/terraform/validate:
+    post:
+      tags: [Terraform]
+      summary: terraform validate (DevOps Engineer+)
+      responses: { '200': { description: OK }, '403': { description: Forbidden } }
+  /api/terraform/plan:
+    post:
+      tags: [Terraform]
+      summary: terraform plan (DevOps Engineer+)
+      responses: { '200': { description: OK }, '403': { description: Forbidden } }
+  /api/terraform/apply:
+    post:
+      tags: [Terraform]
+      summary: terraform apply (Cloud Engineer+; gated by TERRAFORM_ALLOW_MUTATIONS in live mode)
+      responses: { '200': { description: OK }, '403': { description: Forbidden } }
+  /api/terraform/destroy:
+    post:
+      tags: [Terraform]
+      summary: terraform destroy (Cloud Engineer+)
+      responses: { '200': { description: OK }, '403': { description: Forbidden } }
+  /api/terraform/history:
+    get:
+      tags: [Terraform]
+      summary: Terraform deployment history
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
+        - { name: provider, in: query, schema: { type: string, enum: [aws, azure, gcp] } }
+      responses: { '200': { description: OK } }
+
+  # ---- Security Center ----
+  /api/security/overview:
+    get:
+      tags: [Security]
+      summary: Risk + recent events summary (any authenticated role)
+      responses: { '200': { description: OK }, '401': { description: Unauthorized } }
+  /api/security/risk-score:
+    get:
+      tags: [Security]
+      summary: Composite risk score
+      responses: { '200': { description: OK } }
+  /api/security/failed-logins:
+    get:
+      tags: [Security]
+      summary: Failed-login tracking (Cloud Engineer+)
+      parameters: [ { name: hours, in: query, schema: { type: integer, minimum: 1, maximum: 720 } } ]
+      responses: { '200': { description: OK }, '403': { description: Forbidden } }
+  /api/security/access-logs:
+    get:
+      tags: [Security]
+      summary: Raw audit trail (Cloud Engineer+)
+      parameters:
+        - { name: page, in: query, schema: { type: integer } }
+        - { name: limit, in: query, schema: { type: integer, maximum: 100 } }
+        - { name: action, in: query, schema: { type: string } }
+        - { name: success, in: query, schema: { type: boolean } }
+      responses: { '200': { description: OK }, '403': { description: Forbidden } }
+  /api/security/events:
+    get:
+      tags: [Security]
+      summary: Security-relevant events (Cloud Engineer+)
+      responses: { '200': { description: OK }, '403': { description: Forbidden } }
+
+  # ---- AI Cloud Advisor ----
+  /api/ai/advisor:
+    post:
+      tags: [AI]
+      summary: Generate recommendations (DevOps Engineer+)
+      requestBody:
+        content: { application/json: { schema: { type: object, properties: { provider: { type: string, enum: [aws, azure, gcp, multi-cloud, mock] }, type: { type: string } } } } }
+      responses: { '201': { description: Created }, '400': { description: Invalid type }, '403': { description: Forbidden } }
+  /api/ai/recommendations:
+    get:
+      tags: [AI]
+      summary: Recommendation history
+      parameters:
+        - { name: page, in: query, schema: { type: integer } }
+        - { name: limit, in: query, schema: { type: integer, maximum: 100 } }
       responses: { '200': { description: OK } }
