@@ -1,0 +1,398 @@
+openapi: 3.0.3
+info:
+  title: Multi-Cloud Portability & Deployment Platform API
+  version: 0.2.0
+  description: >
+    REST API for the platform. Covers the currently implemented surface:
+    Authentication (Module: Auth) and the Multi-Cloud Dashboard (Module 2),
+    plus operational endpoints (health, Prometheus metrics).
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:5000
+    description: Local
+
+tags:
+  - name: Auth
+  - name: Dashboard
+  - name: Terraform
+  - name: Security
+  - name: AI
+  - name: Ops
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        message: { type: string }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              message: { type: string }
+    Tokens:
+      type: object
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        tokenType: { type: string, example: Bearer }
+        expiresIn: { type: string, example: 15m }
+    User:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string, format: email }
+        role: { type: string, enum: [Admin, Cloud Engineer, DevOps Engineer, Viewer] }
+        organization: { type: string }
+    AuthResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        data:
+          type: object
+          properties:
+            user: { $ref: '#/components/schemas/User' }
+            tokens: { $ref: '#/components/schemas/Tokens' }
+  parameters:
+    ProviderScope:
+      name: provider
+      in: query
+      required: false
+      description: Provider scope. Defaults to multi-cloud.
+      schema:
+        type: string
+        enum: [aws, azure, gcp, multi-cloud, mock]
+
+security:
+  - bearerAuth: []
+
+paths:
+  /metrics:
+    get:
+      tags: [Ops]
+      summary: Prometheus metrics (exposition format)
+      security: []
+      responses:
+        '200': { description: Prometheus text exposition }
+  /api/health:
+    get:
+      tags: [Ops]
+      summary: Liveness probe
+      security: []
+      responses:
+        '200': { description: OK }
+
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user (always non-admin)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name: { type: string }
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+                organization: { type: string }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '400': { description: Validation failed, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: Email already registered }
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Authenticate and receive tokens
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/AuthResponse' } } } }
+        '401': { description: Invalid credentials }
+
+  /api/auth/refresh-token:
+    post:
+      tags: [Auth]
+      summary: Rotate a refresh token into a new token pair
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '200': { description: New tokens }
+        '401': { description: Invalid or revoked refresh token }
+
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke the supplied refresh token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '200': { description: Logged out }
+        '401': { description: Unauthorized }
+
+  /api/auth/profile:
+    get:
+      tags: [Auth]
+      summary: Get the current user's profile
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+    put:
+      tags: [Auth]
+      summary: Update profile / change password
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                organization: { type: string }
+                avatarUrl: { type: string }
+                preferences: { type: object }
+                currentPassword: { type: string }
+                newPassword: { type: string }
+      responses:
+        '200': { description: Updated }
+        '400': { description: Validation / wrong current password }
+        '401': { description: Unauthorized }
+
+  /api/auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Request a password reset token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '200': { description: Generic response (no user enumeration) }
+
+  /api/auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Complete a password reset
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token: { type: string }
+                password: { type: string, minLength: 8 }
+      responses:
+        '200': { description: Password reset }
+        '400': { description: Invalid or expired token }
+
+  /api/dashboard/overview:
+    get:
+      tags: [Dashboard]
+      summary: Provider cards + summary KPIs + recent deployments
+      parameters: [ { $ref: '#/components/parameters/ProviderScope' } ]
+      responses:
+        '200': { description: OK }
+        '400': { description: Invalid provider scope }
+        '401': { description: Unauthorized }
+  /api/dashboard/charts:
+    get:
+      tags: [Dashboard]
+      summary: Deployment trends, cloud usage, resource utilization, cost trends
+      parameters: [ { $ref: '#/components/parameters/ProviderScope' } ]
+      responses: { '200': { description: OK }, '401': { description: Unauthorized } }
+  /api/dashboard/health-score:
+    get:
+      tags: [Dashboard]
+      summary: Cloud health score (overall + per provider)
+      parameters: [ { $ref: '#/components/parameters/ProviderScope' } ]
+      responses: { '200': { description: OK } }
+  /api/dashboard/deployments/stats:
+    get:
+      tags: [Dashboard]
+      summary: Deployment statistics
+      parameters: [ { $ref: '#/components/parameters/ProviderScope' } ]
+      responses: { '200': { description: OK } }
+  /api/dashboard/deployments/trends:
+    get:
+      tags: [Dashboard]
+      summary: Deployment trend time series
+      parameters:
+        - { $ref: '#/components/parameters/ProviderScope' }
+        - { name: days, in: query, schema: { type: integer, minimum: 1, maximum: 90 } }
+      responses: { '200': { description: OK } }
+  /api/dashboard/deployments:
+    get:
+      tags: [Dashboard]
+      summary: Deployment history (pagination/filter/search)
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
+        - { name: sort, in: query, schema: { type: string } }
+        - { name: search, in: query, schema: { type: string } }
+        - { name: provider, in: query, schema: { type: string, enum: [aws, azure, gcp] } }
+        - { name: status, in: query, schema: { type: string } }
+        - { name: type, in: query, schema: { type: string } }
+      responses: { '200': { description: OK }, '400': { description: Invalid filter } }
+  /api/dashboard/resource-utilization:
+    get:
+      tags: [Dashboard]
+      summary: Resource inventory + modeled utilization series
+      parameters: [ { $ref: '#/components/parameters/ProviderScope' } ]
+      responses: { '200': { description: OK } }
+  /api/dashboard/cost-summary:
+    get:
+      tags: [Dashboard]
+      summary: Cost totals, breakdown, trends, savings
+      parameters: [ { $ref: '#/components/parameters/ProviderScope' } ]
+      responses: { '200': { description: OK } }
+  /api/dashboard/security-summary:
+    get:
+      tags: [Dashboard]
+      summary: Security scores + findings
+      parameters: [ { $ref: '#/components/parameters/ProviderScope' } ]
+      responses: { '200': { description: OK } }
+  /api/dashboard/compliance-summary:
+    get:
+      tags: [Dashboard]
+      summary: Compliance scores
+      parameters: [ { $ref: '#/components/parameters/ProviderScope' } ]
+      responses: { '200': { description: OK } }
+
+  # ---- Terraform automation (safe-by-default simulation) ----
+  /api/terraform/init:
+    post:
+      tags: [Terraform]
+      summary: terraform init (DevOps Engineer+)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [provider], properties: { provider: { type: string, enum: [aws, azure, gcp] } } } } }
+      responses: { '200': { description: OK }, '400': { description: Invalid provider }, '401': { description: Unauthorized }, '403': { description: Forbidden } }
+  /api/terraform/validate:
+    post:
+      tags: [Terraform]
+      summary: terraform validate (DevOps Engineer+)
+      responses: { '200': { description: OK }, '403': { description: Forbidden } }
+  /api/terraform/plan:
+    post:
+      tags: [Terraform]
+      summary: terraform plan (DevOps Engineer+)
+      responses: { '200': { description: OK }, '403': { description: Forbidden } }
+  /api/terraform/apply:
+    post:
+      tags: [Terraform]
+      summary: terraform apply (Cloud Engineer+; gated by TERRAFORM_ALLOW_MUTATIONS in live mode)
+      responses: { '200': { description: OK }, '403': { description: Forbidden } }
+  /api/terraform/destroy:
+    post:
+      tags: [Terraform]
+      summary: terraform destroy (Cloud Engineer+)
+      responses: { '200': { description: OK }, '403': { description: Forbidden } }
+  /api/terraform/history:
+    get:
+      tags: [Terraform]
+      summary: Terraform deployment history
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
+        - { name: provider, in: query, schema: { type: string, enum: [aws, azure, gcp] } }
+      responses: { '200': { description: OK } }
+
+  # ---- Security Center ----
+  /api/security/overview:
+    get:
+      tags: [Security]
+      summary: Risk + recent events summary (any authenticated role)
+      responses: { '200': { description: OK }, '401': { description: Unauthorized } }
+  /api/security/risk-score:
+    get:
+      tags: [Security]
+      summary: Composite risk score
+      responses: { '200': { description: OK } }
+  /api/security/failed-logins:
+    get:
+      tags: [Security]
+      summary: Failed-login tracking (Cloud Engineer+)
+      parameters: [ { name: hours, in: query, schema: { type: integer, minimum: 1, maximum: 720 } } ]
+      responses: { '200': { description: OK }, '403': { description: Forbidden } }
+  /api/security/access-logs:
+    get:
+      tags: [Security]
+      summary: Raw audit trail (Cloud Engineer+)
+      parameters:
+        - { name: page, in: query, schema: { type: integer } }
+        - { name: limit, in: query, schema: { type: integer, maximum: 100 } }
+        - { name: action, in: query, schema: { type: string } }
+        - { name: success, in: query, schema: { type: boolean } }
+      responses: { '200': { description: OK }, '403': { description: Forbidden } }
+  /api/security/events:
+    get:
+      tags: [Security]
+      summary: Security-relevant events (Cloud Engineer+)
+      responses: { '200': { description: OK }, '403': { description: Forbidden } }
+
+  # ---- AI Cloud Advisor ----
+  /api/ai/advisor:
+    post:
+      tags: [AI]
+      summary: Generate recommendations (DevOps Engineer+)
+      requestBody:
+        content: { application/json: { schema: { type: object, properties: { provider: { type: string, enum: [aws, azure, gcp, multi-cloud, mock] }, type: { type: string } } } } }
+      responses: { '201': { description: Created }, '400': { description: Invalid type }, '403': { description: Forbidden } }
+  /api/ai/recommendations:
+    get:
+      tags: [AI]
+      summary: Recommendation history
+      parameters:
+        - { name: page, in: query, schema: { type: integer } }
+        - { name: limit, in: query, schema: { type: integer, maximum: 100 } }
+      responses: { '200': { description: OK } }

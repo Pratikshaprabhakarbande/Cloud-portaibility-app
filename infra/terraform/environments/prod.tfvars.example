@@ -1,0 +1,5 @@
+project_name   = "cloud-portability"
+environment    = "prod"
+owner          = "platform"
+# Enable only with reviewed, free-tier/cost-controlled resources.
+enable_compute = false

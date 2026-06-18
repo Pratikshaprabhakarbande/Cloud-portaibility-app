@@ -1,0 +1,9 @@
+# Remote state backend (Google Cloud Storage).
+# Copy to backend.tf and fill in your bucket, then `terraform init`.
+
+terraform {
+  backend "gcs" {
+    bucket = "REPLACE_ME-tfstate"
+    prefix = "cloud-portability/gcp"
+  }
+}

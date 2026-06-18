@@ -1,0 +1,66 @@
+# Dependencies
+node_modules/
+**/node_modules/
+.pnp
+.pnp.js
+
+# Environment files (never commit secrets)
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+*.env
+!.env.example
+!**/.env.example
+
+# Build output
+dist/
+build/
+frontend/dist/
+backend/dist/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Testing / coverage
+coverage/
+.nyc_output/
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+.terraform.lock.hcl
+
+# Cloud / credentials
+*.pem
+*.key
+*-key.json
+.aws/
+credentials.json
+service-account*.json
+
+# Docker
+.docker/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+Thumbs.db
+
+# Misc
+tmp/
+temp/
+.cache/

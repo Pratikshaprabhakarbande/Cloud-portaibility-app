@@ -1,0 +1,15 @@
+# Remote state backend (AWS S3 + DynamoDB lock).
+# Copy to backend.tf and fill in your bucket/table, then `terraform init`.
+# The S3 bucket and DynamoDB table must be created once beforehand (bootstrap).
+
+terraform {
+  backend "s3" {
+    bucket         = "REPLACE_ME-tfstate"
+    key            = "cloud-portability/aws/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "REPLACE_ME-tflock"
+    encrypt        = true
+    # Per-environment isolation via workspaces or distinct keys, e.g.:
+    #   key = "cloud-portability/aws/${var.environment}/terraform.tfstate"
+  }
+}

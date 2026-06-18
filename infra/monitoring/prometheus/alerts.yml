@@ -1,0 +1,54 @@
+# Prometheus alert rules for the platform.
+# These evaluate against metrics exported by the backend (/metrics) and the
+# business gauges populated by the metrics collector.
+groups:
+  - name: backend-availability
+    rules:
+      - alert: BackendDown
+        expr: up{job="backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backend is down"
+          description: "Prometheus has been unable to scrape backend:5000 for over 1 minute."
+
+  - name: backend-performance
+    rules:
+      - alert: HighErrorRate
+        expr: sum(rate(http_request_errors_total[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Elevated 5xx error rate"
+          description: "Backend is returning more than 1 server error per second (5m avg)."
+
+      - alert: HighRequestLatencyP95
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High p95 request latency"
+          description: "95th-percentile request latency has exceeded 1s for 10 minutes."
+
+  - name: platform-posture
+    rules:
+      - alert: LowSecurityScore
+        expr: cloud_security_score{provider="overall"} < 60
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Overall security score is low"
+          description: "The aggregate cloud security score has been below 60 for 10 minutes."
+
+      - alert: OpenIncidents
+        expr: cloud_open_incidents > 0
+        for: 15m
+        labels:
+          severity: info
+        annotations:
+          summary: "Open incidents present"
+          description: "There are open/investigating incidents that need attention."

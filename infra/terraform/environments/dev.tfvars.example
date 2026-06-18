@@ -1,0 +1,4 @@
+project_name   = "cloud-portability"
+environment    = "dev"
+owner          = "platform"
+enable_compute = false

@@ -1,0 +1,121 @@
+# ============================================================
+# Full local stack — one command: `docker compose up --build`
+# Runs in DEMO_MODE by default (no cloud credentials, zero cost).
+# Secrets are REQUIRED: run `cp .env.example .env` first.
+# Resource limits (deploy.resources.limits) are applied by Docker Compose v2.
+# ============================================================
+services:
+  backend:
+    build: ./backend
+    container_name: cp_backend
+    # Secrets are read from your environment / root .env (cp .env.example .env).
+    # Compose fails fast with a clear message if a secret is unset.
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - DEMO_MODE=true
+      - MONGO_URI=mongodb://mongo:27017/cloudportability
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in your environment or root .env (cp .env.example .env)}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in your environment or root .env}
+    ports:
+      - "${BACKEND_PORT:-5000}:5000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.75"
+          memory: 512M
+    networks:
+      - cloudnet
+
+  frontend:
+    build: ./frontend
+    container_name: cp_frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+    networks:
+      - cloudnet
+
+  mongo:
+    image: mongo:7
+    container_name: cp_mongo
+    # No auth for the local demo so the backend connects with a plain URI.
+    # (For a secured deployment, set credentials and update MONGO_URI accordingly.)
+    command: ["mongod", "--bind_ip_all"]
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
+    networks:
+      - cloudnet
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: cp_prometheus
+    volumes:
+      - ./infra/monitoring/prometheus:/etc/prometheus:ro
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+    networks:
+      - cloudnet
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: cp_grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ./infra/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+    networks:
+      - cloudnet
+
+volumes:
+  mongo_data:
+  grafana_data:
+
+networks:
+  cloudnet:
+    driver: bridge
