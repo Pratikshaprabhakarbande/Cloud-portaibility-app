@@ -3,8 +3,6 @@
  *  - Public-only routes: login / register / password reset.
  *  - Protected routes: rendered inside the dashboard Layout, gated by JWT
  *    (and role where applicable).
- *  - "Coming soon" routes are wired with the correct access control so the
- *    navigation behaves correctly ahead of later phases.
  */
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
@@ -27,7 +25,11 @@ import AiAdvisor from './pages/AiAdvisor.jsx';
 import Compliance from './pages/Compliance.jsx';
 import FinOps from './pages/FinOps.jsx';
 import Migration from './pages/Migration.jsx';
-import ComingSoon from './pages/ComingSoon.jsx';
+import Deployments from './pages/Deployments.jsx';
+import DeploymentDetail from './pages/DeploymentDetail.jsx';
+import Monitoring from './pages/Monitoring.jsx';
+import Kubernetes from './pages/Kubernetes.jsx';
+import AdminUsers from './pages/AdminUsers.jsx';
 import Unauthorized from './pages/Unauthorized.jsx';
 import NotFound from './pages/NotFound.jsx';
 
@@ -57,21 +59,22 @@ export default function App() {
           <Route path="/settings" element={<Settings />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
 
-          {/* Coming soon (all roles) */}
-          <Route path="/deployments" element={<ComingSoon />} />
-          <Route path="/monitoring" element={<ComingSoon />} />
+          {/* All roles */}
+          <Route path="/deployments" element={<Deployments />} />
+          <Route path="/deployments/:id" element={<DeploymentDetail />} />
+          <Route path="/monitoring" element={<Monitoring />} />
           <Route path="/security" element={<Security />} />
           <Route path="/compliance" element={<Compliance />} />
           <Route path="/finops" element={<FinOps />} />
 
           {/* Implemented module pages (non-viewer) */}
           <Route path="/terraform" element={<ProtectedRoute roles={NON_VIEWER}><Terraform /></ProtectedRoute>} />
-          <Route path="/kubernetes" element={<ProtectedRoute roles={NON_VIEWER}><ComingSoon /></ProtectedRoute>} />
+          <Route path="/kubernetes" element={<ProtectedRoute roles={NON_VIEWER}><Kubernetes /></ProtectedRoute>} />
           <Route path="/ai-architect" element={<ProtectedRoute roles={NON_VIEWER}><AiAdvisor /></ProtectedRoute>} />
           <Route path="/migration" element={<ProtectedRoute roles={NON_VIEWER}><Migration /></ProtectedRoute>} />
 
-          {/* Coming soon (admin only) */}
-          <Route path="/admin/users" element={<ProtectedRoute roles={[ROLES.ADMIN]}><ComingSoon /></ProtectedRoute>} />
+          {/* Admin only */}
+          <Route path="/admin/users" element={<ProtectedRoute roles={[ROLES.ADMIN]}><AdminUsers /></ProtectedRoute>} />
         </Route>
 
         {/* Redirects + 404 */}
