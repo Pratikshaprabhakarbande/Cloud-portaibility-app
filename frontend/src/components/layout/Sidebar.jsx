@@ -54,11 +54,6 @@ export default function Sidebar({ open, onClose }) {
                     >
                       <Icon name={item.icon} className="h-5 w-5 shrink-0" />
                       <span className="flex-1">{item.label}</span>
-                      {item.status === 'soon' && (
-                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-400 dark:bg-slate-800">
-                          soon
-                        </span>
-                      )}
                     </NavLink>
                   </li>
                 ))}

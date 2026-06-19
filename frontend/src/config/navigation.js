@@ -1,10 +1,8 @@
 /**
  * Sidebar navigation config (role-based).
  *
- * Each item: { label, to, icon, roles?, status? }
+ * Each item: { label, to, icon, roles? }
  *  - roles: if present, only those roles see the item (default: all roles).
- *  - status: 'soon' marks modules not yet implemented (rendered as a
- *    "Coming soon" placeholder route). AI + advanced modules arrive in later phases.
  */
 import { ROLES, ALL_ROLES } from './roles.js';
 

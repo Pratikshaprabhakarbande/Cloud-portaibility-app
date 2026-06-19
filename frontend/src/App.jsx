@@ -3,8 +3,6 @@
  *  - Public-only routes: login / register / password reset.
  *  - Protected routes: rendered inside the dashboard Layout, gated by JWT
  *    (and role where applicable).
- *  - "Coming soon" routes are wired with the correct access control so the
- *    navigation behaves correctly ahead of later phases.
  */
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
@@ -61,7 +59,7 @@ export default function App() {
           <Route path="/settings" element={<Settings />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
 
-          {/* Coming soon (all roles) */}
+          {/* All roles */}
           <Route path="/deployments" element={<Deployments />} />
           <Route path="/deployments/:id" element={<DeploymentDetail />} />
           <Route path="/monitoring" element={<Monitoring />} />
@@ -75,7 +73,7 @@ export default function App() {
           <Route path="/ai-architect" element={<ProtectedRoute roles={NON_VIEWER}><AiAdvisor /></ProtectedRoute>} />
           <Route path="/migration" element={<ProtectedRoute roles={NON_VIEWER}><Migration /></ProtectedRoute>} />
 
-          {/* Coming soon (admin only) */}
+          {/* Admin only */}
           <Route path="/admin/users" element={<ProtectedRoute roles={[ROLES.ADMIN]}><AdminUsers /></ProtectedRoute>} />
         </Route>
 
