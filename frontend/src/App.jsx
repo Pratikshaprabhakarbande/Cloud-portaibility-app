@@ -27,7 +27,10 @@ import AiAdvisor from './pages/AiAdvisor.jsx';
 import Compliance from './pages/Compliance.jsx';
 import FinOps from './pages/FinOps.jsx';
 import Migration from './pages/Migration.jsx';
-import ComingSoon from './pages/ComingSoon.jsx';
+import Deployments from './pages/Deployments.jsx';
+import Monitoring from './pages/Monitoring.jsx';
+import Kubernetes from './pages/Kubernetes.jsx';
+import AdminUsers from './pages/AdminUsers.jsx';
 import Unauthorized from './pages/Unauthorized.jsx';
 import NotFound from './pages/NotFound.jsx';
 
@@ -58,20 +61,20 @@ export default function App() {
           <Route path="/unauthorized" element={<Unauthorized />} />
 
           {/* Coming soon (all roles) */}
-          <Route path="/deployments" element={<ComingSoon />} />
-          <Route path="/monitoring" element={<ComingSoon />} />
+          <Route path="/deployments" element={<Deployments />} />
+          <Route path="/monitoring" element={<Monitoring />} />
           <Route path="/security" element={<Security />} />
           <Route path="/compliance" element={<Compliance />} />
           <Route path="/finops" element={<FinOps />} />
 
           {/* Implemented module pages (non-viewer) */}
           <Route path="/terraform" element={<ProtectedRoute roles={NON_VIEWER}><Terraform /></ProtectedRoute>} />
-          <Route path="/kubernetes" element={<ProtectedRoute roles={NON_VIEWER}><ComingSoon /></ProtectedRoute>} />
+          <Route path="/kubernetes" element={<ProtectedRoute roles={NON_VIEWER}><Kubernetes /></ProtectedRoute>} />
           <Route path="/ai-architect" element={<ProtectedRoute roles={NON_VIEWER}><AiAdvisor /></ProtectedRoute>} />
           <Route path="/migration" element={<ProtectedRoute roles={NON_VIEWER}><Migration /></ProtectedRoute>} />
 
           {/* Coming soon (admin only) */}
-          <Route path="/admin/users" element={<ProtectedRoute roles={[ROLES.ADMIN]}><ComingSoon /></ProtectedRoute>} />
+          <Route path="/admin/users" element={<ProtectedRoute roles={[ROLES.ADMIN]}><AdminUsers /></ProtectedRoute>} />
         </Route>
 
         {/* Redirects + 404 */}

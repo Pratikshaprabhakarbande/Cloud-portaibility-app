@@ -15,15 +15,15 @@ export const NAV_SECTIONS = [
     title: 'Overview',
     items: [
       { label: 'Dashboard', to: '/dashboard', icon: 'dashboard', roles: ALL_ROLES },
-      { label: 'Deployments', to: '/deployments', icon: 'deployments', roles: ALL_ROLES, status: 'soon' }
+      { label: 'Deployments', to: '/deployments', icon: 'deployments', roles: ALL_ROLES }
     ]
   },
   {
     title: 'Operations',
     items: [
       { label: 'Terraform', to: '/terraform', icon: 'rocket', roles: NON_VIEWER },
-      { label: 'Kubernetes', to: '/kubernetes', icon: 'container', roles: NON_VIEWER, status: 'soon' },
-      { label: 'Monitoring', to: '/monitoring', icon: 'chart', roles: ALL_ROLES, status: 'soon' }
+      { label: 'Kubernetes', to: '/kubernetes', icon: 'container', roles: NON_VIEWER },
+      { label: 'Monitoring', to: '/monitoring', icon: 'chart', roles: ALL_ROLES }
     ]
   },
   {
@@ -45,7 +45,7 @@ export const NAV_SECTIONS = [
     title: 'Account',
     items: [
       { label: 'Settings', to: '/settings', icon: 'cog', roles: ALL_ROLES },
-      { label: 'User Management', to: '/admin/users', icon: 'users', roles: [ROLES.ADMIN], status: 'soon' }
+      { label: 'User Management', to: '/admin/users', icon: 'users', roles: [ROLES.ADMIN] }
     ]
   }
 ];
