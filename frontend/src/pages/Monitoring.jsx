@@ -11,7 +11,7 @@ import Icon from '../components/ui/Icon.jsx';
 import { PageLoader } from '../components/ui/Loading.jsx';
 import ErrorState from '../components/ui/ErrorState.jsx';
 
-const GRAFANA_BASE = 'http://localhost:3001';
+const GRAFANA_BASE = import.meta.env.VITE_GRAFANA_URL || 'http://localhost:3001';
 const DASHBOARDS = [
   { uid: 'cp-backend-overview', title: 'Service Health' },
   { uid: 'cp-infrastructure', title: 'Infrastructure' },

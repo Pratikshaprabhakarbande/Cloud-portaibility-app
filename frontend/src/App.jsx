@@ -28,6 +28,7 @@ import Compliance from './pages/Compliance.jsx';
 import FinOps from './pages/FinOps.jsx';
 import Migration from './pages/Migration.jsx';
 import Deployments from './pages/Deployments.jsx';
+import DeploymentDetail from './pages/DeploymentDetail.jsx';
 import Monitoring from './pages/Monitoring.jsx';
 import Kubernetes from './pages/Kubernetes.jsx';
 import AdminUsers from './pages/AdminUsers.jsx';
@@ -62,6 +63,7 @@ export default function App() {
 
           {/* Coming soon (all roles) */}
           <Route path="/deployments" element={<Deployments />} />
+          <Route path="/deployments/:id" element={<DeploymentDetail />} />
           <Route path="/monitoring" element={<Monitoring />} />
           <Route path="/security" element={<Security />} />
           <Route path="/compliance" element={<Compliance />} />

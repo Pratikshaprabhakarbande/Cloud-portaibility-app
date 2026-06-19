@@ -5,6 +5,7 @@
 import userRepository from '../repositories/UserRepository.js';
 import auditLogRepository from '../repositories/AuditLogRepository.js';
 import tokenService from './token.service.js';
+import { sendResetEmail } from './email.service.js';
 import ApiError from '../utils/ApiError.js';
 import logger from '../utils/logger.js';
 import env from '../config/env.js';
@@ -165,8 +166,10 @@ async function forgotPassword(email) {
   }
   const rawToken = await tokenService.generateResetToken(user);
 
-  // No email provider in demo mode — log it (and expose in non-prod responses).
-  logger.info(`[auth] password reset token for ${email}: ${rawToken}`);
+  // Send via SMTP when configured; fallback logs the token (demo mode).
+  const sent = await sendResetEmail({ to: user.email, resetToken: rawToken });
+
+  logger.info(`[auth] password reset for ${email}: sent=${sent}`);
   return { delivered: true, resetToken: env.isProd ? undefined : rawToken };
 }
 
