@@ -2,12 +2,15 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
-// Mock fetch for /metrics (globalThis is the standards-compliant cross-env global)
-globalThis.fetch = vi.fn(() => new Promise(() => {}));
-
-// Mock auth service so AuthProvider doesn't attempt a real network call.
-vi.mock('../services/auth.service.js', () => ({
-  default: { getProfile: () => new Promise(() => {}) }
+// Mock useApi so the component renders immediately with sample metric data,
+// avoiding any fetch/api.js/axios dependency.
+vi.mock('../hooks/useApi.js', () => ({
+  default: () => ({
+    data: { healthScore: 90, securityScore: 80, activeDeployments: 5, containers: 3, monthlyCost: 100, openIncidents: 0, heapUsed: 50000000, eventLoopLag: 0.01, httpRequests: 200, httpErrors: 0 },
+    loading: false,
+    error: null,
+    refetch: vi.fn()
+  })
 }));
 
 import Monitoring from './Monitoring.jsx';
