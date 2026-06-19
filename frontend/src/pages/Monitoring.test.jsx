@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-// Mock fetch for /metrics
-global.fetch = vi.fn(() => new Promise(() => {}));
+// Mock fetch for /metrics (globalThis is the standards-compliant cross-env global)
+globalThis.fetch = vi.fn(() => new Promise(() => {}));
 import Monitoring from './Monitoring.jsx';
 import { ThemeProvider } from '../context/ThemeContext.jsx';
 import { NotificationProvider } from '../context/NotificationContext.jsx';
